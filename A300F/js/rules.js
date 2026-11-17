@@ -183,7 +183,7 @@ window.A300F = window.A300F || {};
 
   /* Passt die ULD durch die Tür? */
   R.doorCheck = function (uld, contourId, loadH, door) {
-    const U = A.ULD[uld], C = A.CONTOURS[contourId], D = A.AIRCRAFT.doors[door];
+    const U = A.ULD[uld], C = A.CONTOURS[contourId], D = ((A.curAC && A.curAC.doors) || A.AIRCRAFT.doors)[door];
     if (!U || !D) return null;
     const shortSide = Math.min(U.base.a, U.base.b), h = U.kind === 'container' ? U.height : (loadH || (C ? C.hMax : 0)) + U.thick;
     const okW = shortSide <= D.w * 100, okH = h <= D.h * 100;
@@ -198,12 +198,13 @@ window.A300F = window.A300F || {};
     if (!entry || !entry.uld || entry.uld === 'BULK') return out;
     const U = A.ULD[entry.uld];
     if (!pos.uld.includes(entry.uld)) out.push({lvl:'bad', txt:`${entry.uld} ist auf ${pos.id} nicht erlaubt. Erlaubt ${pos.uld.join(', ')}.`, rule:'ok'});
-    if (entry.contour && pos.contour && entry.contour !== pos.contour) out.push({lvl:'bad', txt:`Die ULD wurde für "${(A.CONTOURS[entry.contour] || {}).name}" gebaut. ${pos.id} braucht "${(A.CONTOURS[pos.contour] || {}).name}".`, rule:'unver'});
+    const need = A.contourFor(pos, entry.uld);
+    if (entry.contour && need && entry.contour !== need) out.push({lvl:'bad', txt:`Die ULD wurde für "${(A.CONTOURS[entry.contour] || {}).name}" gebaut. ${pos.id} braucht "${(A.CONTOURS[need] || {}).name}".`, rule:'unver'});
     if (U) {
       const m = U.mgw[pos.deck === 'main' ? 'main' : 'lower'];
       if (+entry.kg > m.v) out.push({lvl:'bad', txt:`${kg(entry.kg)} kg ist mehr als erlaubt für ${entry.uld} im ${pos.deck === 'main' ? 'Hauptdeck' : 'Unterdeck'} (${kg(m.v)} kg).`, rule:m.st});
       if (entry.kg && +entry.kg < U.tare.v) out.push({lvl:'info', txt:`Das Gewicht ist kleiner als das Eigengewicht der ${entry.uld} (${kg(U.tare.v)} kg). Bruttogewicht eintragen.`, rule:'ok'});
-      const d = R.doorCheck(entry.uld, pos.contour, entry.loadH, pos.door || pos.comp);
+      const d = R.doorCheck(entry.uld, A.contourFor(pos, entry.uld), entry.loadH, pos.door || pos.comp);
       if (d && !d.ok) out.push({lvl:'bad', txt:d.msg, rule:d.st});
     }
     return out;
@@ -211,7 +212,7 @@ window.A300F = window.A300F || {};
 
   /* Gewicht und Schwerpunkt, Trainingsrechnung */
   R.weights = function (items, inp) {
-    const AC = A.AIRCRAFT;
+    const AC = A.curAC || A.AIRCRAFT;
     const deck = {main:0, lfwd:0, laft:0, bulk:0};
     let payload = 0, mom = 0;
     items.forEach(it => { deck[it.zone] += it.kg; payload += it.kg; mom += it.kg * it.arm; });

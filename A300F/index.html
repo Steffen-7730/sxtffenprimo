@@ -355,6 +355,7 @@ tbody tr.sel td{background:var(--info-bg)}
         <button class="gbtn" data-view="lower">Unterdeck</button>
         <button class="gbtn" data-view="door">Tür</button>
         <button class="gbtn" data-view="apron">Vorfeld</button>
+        <button class="gbtn" data-view="lager">Lager</button>
       </div>
       <button class="ov gbtn legend-toggle" id="legendToggle" aria-expanded="false" aria-controls="legend">Farben</button>
       <div class="ov legend" id="legend" hidden></div>
@@ -364,9 +365,11 @@ tbody tr.sel td{background:var(--info-bg)}
       <div class="ov nogl" id="nogl" hidden><div><h3>3D startet hier nicht</h3><p>Dein Browser lässt das 3D Modell nicht zu. Der Reiter Ladeplan zeigt dir alle Positionen von oben. Dort kannst du genauso planen.</p></div></div>
     </div>
     <div class="toolbar" id="toolbar">
-      <div class="tool-group"><span class="tool-label">Hauptdeck</span>
+      <div class="tool-group"><span class="tool-label">Flugzeug</span>
+        <div class="seg" data-key="ac"><button data-val="A300F">A300F</button><button data-val="B777F">777F</button><button data-val="A320">A320</button><button data-val="A319">A319</button></div></div>
+      <div class="tool-group" id="cfgMain"><span class="tool-label">Hauptdeck</span>
         <div class="seg" data-key="mainCfg"><button data-val="a21">Airbus · 21</button><button data-val="sbs">Plan Bild 3 · 22</button><button data-val="single">Eine Reihe · 15</button></div></div>
-      <div class="tool-group"><span class="tool-label">Unterdeck</span>
+      <div class="tool-group" id="cfgLow"><span class="tool-label">Unterdeck</span>
         <div class="seg" data-key="lowerCfg"><button data-val="pal">Paletten · 7</button><button data-val="ld3">AKE · 22</button></div></div>
       <div class="tool-group"><span class="tool-label">Farbe nach</span>
         <div class="seg" data-key="colorMode"><button data-val="cat">Frachtart</button><button data-val="uld">ULD Typ</button></div></div>
@@ -376,7 +379,7 @@ tbody tr.sel td{background:var(--info-bg)}
         <div class="toggles"><button class="tog" data-tog="showMain" aria-pressed="true">Hauptdeck</button><button class="tog" data-tog="showLower" aria-pressed="true">Unterdeck</button><button class="tog" data-tog="labels" aria-pressed="true">Namen</button><button class="tog" data-tog="doors" aria-pressed="false">Türen offen</button><button class="tog" data-tog="apron" aria-pressed="true">Vorfeld</button></div></div>
       <div class="tool-group" id="phaseGroup"><span class="tool-label">Vorfeld Phase</span>
         <div class="seg" data-key="phase"><button data-val="arr">Ankunft</button><button data-val="turn">Abfertigung</button><button data-val="dep">Abflug</button></div></div>
-      <div class="playrow"><button class="play" id="playBtn">Beladung abspielen</button><button class="play alt" id="unloadBtn">Entladung abspielen</button></div>
+      <div class="playrow"><button class="play" id="playBtn">Beladung abspielen</button><button class="play alt" id="unloadBtn">Entladung abspielen</button><button class="play alt" id="chainBtn">Lager bis Flugzeug</button></div>
     </div>
   </section>
 
@@ -736,8 +739,8 @@ function segConflict(a, b){
   return SEG_PAIRS.some(([x,y]) => (a === x && b === y) || (a === y && b === x));
 }
 
-const PAYLOAD = A300F.AIRCRAFT.payload.v;
-const R = 2.82, MAIN_Y = -0.27, LOW_Y = -2.10;
+let PAYLOAD = A300F.AIRCRAFT.payload.v;
+let R = 2.82, MAIN_Y = -0.27, LOW_Y = -2.10, CY = 0;
 const PROF = {
   sbsL:[[0.05,0],[2.29,0],[2.29,1.55],[1.45,2.438],[0.05,2.438]],
   ctr82:[[-1.59,0],[1.59,0],[1.59,1.40],[1.0,2.08],[-1.0,2.08],[-1.59,1.40]],
@@ -762,6 +765,7 @@ function mk(o){
 }
 
 function buildPositions(){
+  if (state.ac && state.ac !== 'A300F') return buildPositionsFleet();
   const L = [];
   const sbsRow = (idR, idL, x0, front) => {
     L.push(mk({id:idR, deck:'main', side:'R', x0, len:3.18, prof:'sbsR', y0:MAIN_Y, uld:['PAG','PAJ'], contour:'MD_SBS_R', maxH:'bis 243,8 cm (96 in), außen schräg', size:'88 × 125 in', accessible:front}));
@@ -787,11 +791,11 @@ function buildPositions(){
     });
   }
   if (state.lowerCfg === 'pal'){
-    for (let i = 0; i < 4; i++) L.push(mk({id:'P' + (i + 1), deck:'lower', comp:'lfwd', x0:8.6 + i * 2.32, len:2.24, prof:'low', y0:LOW_Y, uld:['PAG','PAJ'], contour:'LD_PAL', maxH:'bis 162 cm (64 in)', size:'88 × 125 in'}));
-    for (let i = 0; i < 3; i++) L.push(mk({id:'P' + (i + 5), deck:'lower', comp:'laft', x0:27.6 + i * 2.32, len:2.24, prof:'low', y0:LOW_Y, uld:['PAG','PAJ'], contour:'LD_PAL', maxH:'bis 162 cm (64 in)', size:'88 × 125 in'}));
+    for (let i = 0; i < 4; i++) L.push(mk({id:'P' + (i + 1), deck:'lower', comp:'lfwd', x0:8.6 + i * 2.32, len:2.24, prof:'low', y0:LOW_Y, uld:['PAG','PAJ','RAP','RLP'], contour:'LD_PAL', maxH:'bis 162 cm (64 in)', size:'88 × 125 in'}));
+    for (let i = 0; i < 3; i++) L.push(mk({id:'P' + (i + 5), deck:'lower', comp:'laft', x0:27.6 + i * 2.32, len:2.24, prof:'low', y0:LOW_Y, uld:['PAG','PAJ','RAP','RLP'], contour:'LD_PAL', maxH:'bis 162 cm (64 in)', size:'88 × 125 in'}));
   } else {
-    ['11','12','13','21','22','23'].forEach((r, i) => ['L','R'].forEach(s => L.push(mk({id:r + s, deck:'lower', comp:'lfwd', side:s, x0:8.6 + i * 1.57, len:1.53, prof:s === 'L' ? 'ld3L' : 'ld3R', y0:LOW_Y, uld:['AKE'], contour:'AKE', maxH:'Container 162,6 cm', size:'AKE, Boden 156,2 × 153,4 cm'}))));
-    ['31','32','33','41','42'].forEach((r, i) => ['L','R'].forEach(s => L.push(mk({id:r + s, deck:'lower', comp:'laft', side:s, x0:26.9 + i * 1.57, len:1.53, prof:s === 'L' ? 'ld3L' : 'ld3R', y0:LOW_Y, uld:['AKE'], contour:'AKE', maxH:'Container 162,6 cm', size:'AKE, Boden 156,2 × 153,4 cm'}))));
+    ['11','12','13','21','22','23'].forEach((r, i) => ['L','R'].forEach(s => L.push(mk({id:r + s, deck:'lower', comp:'lfwd', side:s, x0:8.6 + i * 1.57, len:1.53, prof:s === 'L' ? 'ld3L' : 'ld3R', y0:LOW_Y, uld:['AKE','AKH','RKN'], contour:'AKE', maxH:'Container 162,6 cm', size:'AKE, Boden 156,2 × 153,4 cm'}))));
+    ['31','32','33','41','42'].forEach((r, i) => ['L','R'].forEach(s => L.push(mk({id:r + s, deck:'lower', comp:'laft', side:s, x0:26.9 + i * 1.57, len:1.53, prof:s === 'L' ? 'ld3L' : 'ld3R', y0:LOW_Y, uld:['AKE','AKH','RKN'], contour:'AKE', maxH:'Container 162,6 cm', size:'AKE, Boden 156,2 × 153,4 cm'}))));
   }
   L.push(mk({id:'BULK', label:'Bulk', deck:'lower', comp:'laft', x0:34.95, len:3.5, prof:'bulk', y0:LOW_Y, uld:['BULK'], contour:null, maxH:'lose Stücke, 11,27 m³', size:'Raum für lose Fracht', door:'bulk'}));
 
@@ -826,6 +830,7 @@ const EX_LOWER = {
 };
 function exampleEntry(a){ const e = {cat:a[0], uld:a[1], kg:a[2]}; if (a[3]) e.note = a[3]; if (a[4]) e.dg = a[4].slice(); if (a[5]) e.un = a[5]; return e; }
 function loadExample(){
+  if (state.ac && state.ac !== 'A300F'){ applyAircraftGlobals(); state.plan = exampleFleetPlan(); state.isExample = true; state.selected = null; return; }
   const plan = {};
   Object.entries(EX_MAIN[state.mainCfg]).forEach(([k,v]) => plan[k] = exampleEntry(v));
   Object.entries(EX_LOWER[state.lowerCfg]).forEach(([k,v]) => plan[k] = exampleEntry(v));
@@ -836,11 +841,13 @@ function loadExample(){
 
 /* ---------- Zustand ---------- */
 const LS = 'a300f-ladeplan-v1';
-const state = {mainCfg:'a21', build:null, wb:{oew:78335, tof:22000, trip:15000}, lowerCfg:'pal', colorMode:'cat', hull:'xray', showMain:true, showLower:true, labels:true, doors:false, plan:{}, selected:null, isExample:true, tab:'pos', view:'iso', apron:true, phase:'turn', selWorker:null, names:{}};
+const state = {ac:'A300F', planByAc:{}, mainCfg:'a21', build:null, wb:{oew:78335, tof:22000, trip:15000}, lowerCfg:'pal', colorMode:'cat', hull:'xray', showMain:true, showLower:true, labels:true, doors:false, plan:{}, selected:null, isExample:true, tab:'pos', view:'iso', apron:true, phase:'turn', selWorker:null, names:{}};
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { saved = null; }
 if (saved && typeof saved === 'object'){
-  ['mainCfg','lowerCfg','colorMode','hull','labels','plan','selected','isExample','tab','apron','phase','selWorker','names','build','wb'].forEach(k => { if (saved[k] !== undefined) state[k] = saved[k]; });
+  ['mainCfg','lowerCfg','colorMode','hull','labels','plan','selected','isExample','tab','apron','phase','selWorker','names','build','wb','ac','planByAc'].forEach(k => { if (saved[k] !== undefined) state[k] = saved[k]; });
+  if (!A300F.FLEET[state.ac]) state.ac = 'A300F';
+  if (!state.planByAc || typeof state.planByAc !== 'object') state.planByAc = {};
   if (!state.wb || typeof state.wb !== 'object') state.wb = {oew:78335, tof:22000, trip:15000};
   if (saved.ver !== 3){
     const mapU = {AAX:'PAG', AAC:'PAJ', LAY:'PAG', AKN:'AKE', RKN:'AKE'};
@@ -851,7 +858,7 @@ if (saved && typeof saved === 'object'){
   if (!state.names || typeof state.names !== 'object') state.names = {};
   if (!['arr','turn','dep'].includes(state.phase)) state.phase = 'turn';
 } else loadExample();
-function save(){ try { localStorage.setItem(LS, JSON.stringify({mainCfg:state.mainCfg, lowerCfg:state.lowerCfg, colorMode:state.colorMode, hull:state.hull, labels:state.labels, plan:state.plan, selected:state.selected, isExample:state.isExample, tab:state.tab, ver:3, build:state.build, wb:state.wb, apron:state.apron, phase:state.phase, selWorker:state.selWorker, names:state.names})); } catch (e) {} }
+function save(){ try { localStorage.setItem(LS, JSON.stringify({mainCfg:state.mainCfg, lowerCfg:state.lowerCfg, colorMode:state.colorMode, hull:state.hull, labels:state.labels, plan:state.plan, selected:state.selected, isExample:state.isExample, tab:state.tab, ver:3, ac:state.ac, planByAc:state.planByAc, build:state.build, wb:state.wb, apron:state.apron, phase:state.phase, selWorker:state.selWorker, names:state.names})); } catch (e) {} }
 
 let POS = [], BYID = {};
 const entry = id => state.plan[id] && state.plan[id].cat ? state.plan[id] : null;
@@ -877,6 +884,7 @@ function computeWarnings(){
   for (const p of POS){
     const e = entry(p.id); if (!e) continue;
     total += +e.kg || 0;
+    if (e.uld === 'AKH' && p.contour === 'AKE'){ const opp = p.id.slice(0, -1) + (p.side === 'L' ? 'R' : 'L'); if (entry(opp)) W.push({id:p.id, lvl:'bad', t:`AKH auf einer LD3 Position. Der Platz gegenüber (${opp}) muss frei bleiben (Lufthansa Cargo).`}); }
     A300F.rules.positionCheck(p, e).forEach(m => W.push({id:p.id, lvl:m.lvl, t:m.txt + (m.rule && m.rule !== 'ok' ? ' (' + A300F.STATUS[m.rule].label + ')' : '')}));
     if (e.build){ const nb = A300F.rules.checkBuild(e.build).list.filter(m => m.lvl === 'bad').length; if (nb) W.push({id:p.id, lvl:'bad', t:`Der Aufbau dieser ULD hat ${nb} Fehler. Im Reiter Aufbau prüfen.`}); }
     if (e.cat === 'xps' && !nearDoor(p)) W.push({id:p.id, lvl:'info', t:'Express liegt weit weg von der Tür. Beim Entladen kommt es spät raus. Besser eine Position nah an der Tür.'});
@@ -916,7 +924,9 @@ const VIEWS = {
   top:{pos:[24,64,0.01], tgt:[24,0,0], fit:29},
   lower:{pos:[12,8,-36], tgt:[22.5,-1.6,0], fit:22},
   door:{pos:[3,3.2,15.5], tgt:[13,0.1,0]},
-  apron:{pos:[-30,40,62], tgt:[22,-4,0], fit:32}
+  apron:{pos:[-30,40,62], tgt:[22,-4,0], fit:32},
+  lager:{pos:[-16,14,76], tgt:[-44,-3.5,50], abs:true},
+  chain:{pos:[-30,44,96], tgt:[-14,-4,30], abs:true}
 };
 function webglOK(){ try { const c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl'))); } catch (e) { return false; } }
 
@@ -940,9 +950,10 @@ function init3D(){
   const fill = new THREE.DirectionalLight(0x9fc3ff, 0.35); fill.position.set(40, 10, -30); scene.add(fill);
   const t = {renderer, scene, camera, controls, meshes:{}, dirty:true, doors:[], texCache:new Map(), tween:null};
   T = t;
-  buildEnv(t); buildAircraft(t); buildDecks(t); buildDoors(t); buildCg(t);
+  buildEnv(t); buildAircraftFor(t); buildDecksFor(t); buildDoors(t); buildCg(t);
   t.tags = [t.tag9g, t.tagWing, ...t.doors.map(d => d.tag), t.cgTag];
   buildApron(t);
+  if (state.ac !== 'A300F'){ adaptPoses(); layoutApron(); setPhase(state.phase, true, true); }
   t.posMain = new THREE.Group(); t.posLow = new THREE.Group(); scene.add(t.posMain, t.posLow);
   t.selLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:0xffd43b, depthTest:false, transparent:true}));
   t.selLines.renderOrder = 30; t.selLines.visible = false; scene.add(t.selLines);
@@ -960,10 +971,12 @@ function resize3D(){
 }
 function viewPose(name){
   const v = VIEWS[name]; const tgt = new THREE.Vector3(...v.tgt); const pos = new THREE.Vector3(...v.pos);
+  const kL = v.abs ? 1 : curAC().L / 54.08; tgt.x *= kL; pos.x *= kL;
+  if (name === 'door'){ const AC = curAC(), dk = AC.cargoMain ? 'main' : 'lfwd', sd = AC.cargoMain ? 1 : -1; tgt.set(doorX(dk), (dk === 'main' ? MAIN_Y : LOW_Y) + 1, 0); pos.set(tgt.x - 10, tgt.y + 3.5, sd * 15.5); }
   if (v.fit){
     const dir = pos.clone().sub(tgt); const d0 = dir.length(); dir.normalize();
     const tanH = Math.tan(THREE.MathUtils.degToRad(T.camera.fov / 2));
-    const need = v.fit / (tanH * Math.min(T.camera.aspect, 1.9));
+    const need = v.fit * kL / (tanH * Math.min(T.camera.aspect, 1.9));
     pos.copy(tgt).addScaledVector(dir, Math.max(d0 * (T.camera.aspect < 1.2 ? 1 : 0.85), need));
   }
   return {pos, tgt};
@@ -971,7 +984,7 @@ function viewPose(name){
 function goView(name){
   state.view = name;
   if (name === 'lower') state.showMain = false; else if (!state.showMain && name !== 'lower') state.showMain = true;
-  if (name === 'apron' && !state.apron){ state.apron = true; save(); }
+  if ((name === 'apron' || name === 'lager' || name === 'chain') && !state.apron){ state.apron = true; save(); }
   renderViews(); renderToolbar(); apply3D();
   if (!T) return;
   const v = viewPose(name);
@@ -1096,13 +1109,9 @@ function makeDoor(x0, x1, y0, y1, side, open, label, lpos){
 }
 function buildDoors(t){
   t.doorGroup = new THREE.Group(); t.scene.add(t.doorGroup);
-  const defs = [
-    [8.3, 11.88, MAIN_Y, MAIN_Y + 2.57, 1, 1.85, 'Tür Hauptdeck', [10.1, -1.3, 4.0]],
-    [8.6, 11.05, LOW_Y, LOW_Y + 1.70, -1, 1.5, 'Tür vorne', [9.8, -3.3, -3.4]],
-    [32.0, 34.45, LOW_Y, LOW_Y + 1.68, -1, 1.5, 'Tür hinten', [33.2, -3.3, -3.4]],
-    [35.5, 36.45, -1.9, -1.26, -1, 1.5, 'Bulk Tür', [36.6, -4.25, -3.2]]
-  ];
+  const defs = doorDefs();
   t.doors = defs.map(d => { const o = makeDoor(...d); t.doorGroup.add(o.grp); t.doorGroup.add(o.tag); return o; });
+  t.doors.forEach(d => { d.grp.position.y += CY; });
   t.loaders = new THREE.Group(); t.scene.add(t.loaders);
   const lm = new THREE.MeshStandardMaterial({color:0xe2b100, roughness:0.6, metalness:0.2});
   const legM = new THREE.LineBasicMaterial({color:0x8a7a3a});
@@ -1114,9 +1123,9 @@ function buildDoors(t){
     const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, d), new THREE.MeshStandardMaterial({color:0x3a4652})); base.position.set(x, GROUND + 0.25, z); t.loaders.add(base);
     return h;
   };
-  loader(10.1, 5.3, MAIN_Y, 3.9, 3.8);
-  loader(9.83, -5.4, LOW_Y, 3.0, 4.2);
-  loader(33.2, -5.4, LOW_Y, 3.0, 4.2);
+  if (curAC().cargoMain) loader(doorX('main'), mainSide() * (R + 2.48), MAIN_Y, 3.9, 3.8);
+  loader(doorX('lfwd'), -(R + 2.58), LOW_Y, 3.0, 4.2);
+  loader(doorX('laft'), -(R + 2.58), LOW_Y, 3.0, 4.2);
   t.loaders.visible = false;
 }
 function buildCg(t){
@@ -1217,7 +1226,7 @@ function apply3D(){
   T.rings.visible = !paint;
   T.doorGroup.visible = true;
   T.doors.forEach(d => d.tag.visible = state.labels);
-  T.tag9g.visible = state.labels; T.tagWing.visible = state.labels;
+  T.tag9g.visible = state.labels && curAC().cargoMain; T.tagWing.visible = state.labels;
   T.loaders.visible = (state.doors || !!anim) && !state.apron;
   applyApron();
   // Auswahl
@@ -1266,7 +1275,12 @@ const SEGTXT = {
   side:['Auf die Spur','Seitlich auf die richtige Spur. Die Führungsschienen halten die Richtung.'],
   lock:['Riegel zu','Erst mit geschlossenen Riegeln ist die ULD gesichert. Dann gilt die Position als beladen.'],
   belt:['Über das Band','Lose Stücke laufen über das Förderband in den Bulk und werden dort mit Netz gesichert.'],
-  out:['Vor die Tür','Ohne Vorfeld fährt die ULD direkt auf Türhöhe vor.']
+  out:['Vor die Tür','Ohne Vorfeld fährt die ULD direkt auf Türhöhe vor.'],
+  build:['Palette wird gebaut','Schwere Stücke unten, leichte oben. Nicht stapelbare Teile kommen nach oben.'],
+  net:['Netz und Gurte','Das Netz hält die Ladung im Flug, die Gurte werden festgezogen.'],
+  gauge:['Konturlehre','Die ULD fährt durch die Konturlehre. So sieht man sofort, ob sie in die Kontur passt.'],
+  weigh:['Waage','Das Gewicht geht an Load Control. Damit wird der Ladeplan gerechnet.'],
+  drive:['Fahrt übers Vorfeld','Der Schlepper bringt die ULD auf dem Dolly zum Loader. Nur auf Fahrwegen und langsam an Flugzeug und Leuten.']
 };
 const SEGTXT_UN = {
   dolly:['ULD steht auf dem Dolly','Der Schlepper bringt sie ins Lager oder direkt zum Anschlussflug.'],
@@ -1277,29 +1291,35 @@ const SEGTXT_UN = {
   side:['Zur Mitte','Erst zur Mitte, dann nach vorne zur Tür.'],
   lock:['Riegel auf','Vor dem Bewegen müssen alle Riegel dieser Position offen sein.'],
   belt:['Über das Band','Lose Stücke laufen aus dem Bulk über das Band nach unten.'],
-  out:['Raus vor die Tür','Ohne Vorfeld fährt die ULD direkt aus der Tür.']
+  out:['Raus vor die Tür','Ohne Vorfeld fährt die ULD direkt aus der Tür.'],
+  build:['Palette wird gebaut','Rückwärts gespult. Die Stücke verschwinden wieder.'],
+  net:['Netz und Gurte','Rückwärts gespult.'],
+  gauge:['Konturlehre','Rückwärts gespult.'],
+  weigh:['Waage','Rückwärts gespult.'],
+  drive:['Fahrt übers Vorfeld','Rückwärts gespult. Der Schlepper fährt zurück ins Lager.']
 };
-function loaderFor(p){ if (!state.apron || !T || !T.gse) return null; if (p.id === 'BULK') return null; return p.comp === 'main' ? 'mdl' : p.comp === 'lfwd' ? 'ldlF' : 'ldlA'; }
+function loaderFor(p){ if (!state.apron || !T || !T.gse) return null; if (p.id === 'BULK') return null; if (p.comp === 'main') return curAC().cargoMain ? 'mdl' : null; return p.comp === 'lfwd' ? 'ldlF' : 'ldlA'; }
 function animSegments(p){
   const xc = p.x0 + p.len / 2, zc = (p.z0 + p.z1) / 2, S = [];
   const O = (x, y, z) => ({x:x - xc, y:y - p.y0, z:z - zc});
   const add = (k, a, b, d, plat) => S.push({k, a, b, d, plat:plat || null});
   const hl = GROUND + 0.95, dTop = GROUND + 0.86, fin = O(xc, p.y0, zc);
   if (p.id === 'BULK'){
-    if (state.apron){ const a = O(35.97, GROUND + 1.1, -9.0), b = O(35.97, -1.95, -2.4); add('belt', a, b, 2.0); add('door', b, fin, 1.0); }
-    else { const a = O(35.97, LOW_Y, -7), b = O(35.97, LOW_Y, -1.5); add('out', a, b, 1.2); add('door', b, fin, 1.0); }
+    const xb = doorX('bulk');
+    if (state.apron){ const a = O(xb, GROUND + 1.1, -(R + 6.18)), b = O(xb, LOW_Y + 0.15, -(R - 0.42)); add('belt', a, b, 2.0); add('door', b, fin, 1.0); }
+    else { const a = O(xb, LOW_Y, -(R + 4.18)), b = O(xb, LOW_Y, -(R - 1.32)); add('out', a, b, 1.2); add('door', b, fin, 1.0); }
     add('lock', fin, fin, 0.4); return S;
   }
-  const main = p.comp === 'main', dy = p.y0, xd = main ? 10.1 : p.comp === 'lfwd' ? 9.83 : 33.2, lid = loaderFor(p);
-  let atDoor = O(xd, dy, 0);
+  const main = p.comp === 'main', dy = p.y0, xd = doorX(main ? 'main' : p.comp), lid = loaderFor(p), s = main ? mainSide() : -1;
+  const atDoor = O(xd, dy, 0);
   if (lid){
-    const pz = main ? 5.6 : -4.6, P = {id:lid, h0:hl, h1:hl};
-    if (main){ const d0 = O(10.1, dTop, 14); add('dolly', d0, d0, 0.6, P); add('take', d0, O(10.1, hl, pz), 1.4, P); }
-    else { const d0 = O(p.comp === 'lfwd' ? 15.9 : 23.7, dTop, -14), via = O(xd, hl, -9.4); add('dolly', d0, d0, 0.6, P); add('take', d0, via, 1.2, P); add('take', via, O(xd, hl, pz), 0.8, P); }
+    const pz = main ? s * (R + 2.78) : -(R + 1.78), P = {id:lid, h0:hl, h1:hl};
+    if (main){ const d0 = O(xd, dTop, s * (R + 11.18)); add('dolly', d0, d0, 0.6, P); add('take', d0, O(xd, hl, pz), 1.4, P); }
+    else { const d0 = O(p.comp === 'lfwd' ? xd + 6.07 : xd - 9.5, dTop, -(R + 11.18)), via = O(xd, hl, -(R + 6.58)); add('dolly', d0, d0, 0.6, P); add('take', d0, via, 1.2, P); add('take', via, O(xd, hl, pz), 0.8, P); }
     add('lift', O(xd, hl, pz), O(xd, dy, pz), 1.4, {id:lid, h0:hl, h1:dy});
     add('door', O(xd, dy, pz), atDoor, 1.0, {id:lid, h0:dy, h1:dy});
   } else {
-    const a = O(xd, dy, main ? 7.8 : -7.0); add('out', a, a, 0.4); add('door', a, atDoor, 1.0);
+    const a = O(xd, dy, main ? s * (R + 4.98) : -(R + 4.18)); add('out', a, a, 0.4); add('door', a, atDoor, 1.0);
   }
   const rollEnd = O(xc, dy, 0);
   add('roll', atDoor, rollEnd, Math.max(0.6, Math.abs(xc - xd) / 7), lid ? {id:lid, h0:dy, h1:hl} : null);
@@ -1311,7 +1331,9 @@ function startAnim(mode){
   if (!T) return;
   mode = mode || 'load';
   if (anim){ const same = anim.mode === mode; stopAnim(); if (same) return; }
+  if (mode === 'chain' && !state.apron) state.apron = true;
   let items = POS.filter(p => entry(p.id));
+  if (mode === 'chain' && state.selected && entry(state.selected)) items = [BYID[state.selected]];
   const ghost = !items.length; if (ghost) items = POS.slice();
   const go = {main:0, lfwd:1, laft:2};
   items.sort((a, b) => (go[a.comp] - go[b.comp]) || (a.order - b.order));
@@ -1319,8 +1341,9 @@ function startAnim(mode){
   if (state.apron && state.phase !== 'turn'){ setPhase('turn', false, true); hold = 4.5; save(); renderTeamTab(); }
   state.showMain = true; state.showLower = true; state.doors = true; if (state.hull === 'paint' || state.hull === 'off') state.hull = 'xray';
   let t = 0;
-  const list = items.map(p => { const segs = animSegments(p), d = segs.reduce((s, x) => s + x.d, 0), it = {p, segs, t0:t, t1:t + d}; t += d + 0.15; return it; });
-  anim = {mode, items:list, T:t, t:mode === 'load' ? 0 : t, dir:mode === 'load' ? 1 : -1, playing:true, speed:2, hold, ghost, hidden:new Set(list.map(i => i.p.id)), key:'', cur:null};
+  const list = items.map((p, i) => { const segs = mode === 'chain' ? chainSegments(p, i) : animSegments(p), d = segs.reduce((s, x) => s + x.d, 0), it = {p, segs, t0:t, t1:t + d}; t += d + 0.15; return it; });
+  anim = {mode, items:list, T:t, t:mode === 'unload' ? t : 0, dir:mode === 'unload' ? -1 : 1, playing:true, follow:mode === 'chain', speed:mode === 'chain' ? 4 : 2, hold, ghost, hidden:new Set(list.map(i => i.p.id)), key:'', cur:null};
+  if (mode === 'chain'){ ['trainL','trainR'].forEach(id => { if (T.gse && T.gse[id]) T.gse[id].g.visible = false; }); goView('chain'); }
   if (ghost) list.forEach(it => { const m = T.meshes[it.p.id]; if (m){ m.cargo.material.map = null; m.cargo.material.color.set(0x8ea3b8); m.cargo.material.needsUpdate = true; } });
   renderToolbar(); apply3D(); renderQuick(); animButtons(); applyAnimTime(anim.t); renderCaption();
 }
@@ -1336,12 +1359,12 @@ function applyAnimTime(t){
     if (!s){ s = it.segs[it.segs.length - 1]; k = 1; }
     const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
     m.cargo.position.set(it.p.x0 + s.a.x + (s.b.x - s.a.x) * e, s.a.y + (s.b.y - s.a.y) * e, s.a.z + (s.b.z - s.a.z) * e);
-    m.cargo.visible = true;
+    m.cargo.visible = !s.hide;
     if (s.plat) plat[s.plat.id] = s.plat.h0 + (s.plat.h1 - s.plat.h0) * e;
-    cur = {it, s};
+    cur = {it, s, k:e};
   }
   if (state.apron && T.gse) ['mdl','ldlF','ldlA'].forEach(id => { const o = T.gse[id]; if (!o || o.tr || !o.g.visible) return; const h = plat[id] != null ? plat[id] : GROUND + 0.95; o.setH(h); o.h = h; });
-  A.cur = cur;
+  A.cur = cur; if (A.mode === 'chain') chainVisual(cur);
 }
 function animTick(dt){
   const A = anim; if (!A) return;
@@ -1358,23 +1381,24 @@ function stopAnim(){
   anim.items.forEach(it => { const m = T && T.meshes[it.p.id]; if (m) m.cargo.position.set(it.p.x0, 0, 0); });
   anim = null;
   if (state.apron && T && T.gse) ['mdl','ldlF','ldlA'].forEach(id => { const o = T.gse[id]; if (!o || o.tr) return; const P = GSE_POSES[id][state.phase]; if (P.h != null){ o.setH(P.h); o.h = P.h; } });
-  $('#caption').hidden = true; animButtons(); apply3D(); renderQuick();
+  chainCleanup(); $('#caption').hidden = true; animButtons(); apply3D(); renderQuick();
 }
 function animButtons(){
   const pb = $('#playBtn'), ub = $('#unloadBtn'), a = anim && anim.mode;
   pb.classList.toggle('stop', a === 'load'); pb.textContent = a === 'load' ? 'Stopp' : 'Beladung abspielen';
   ub.classList.toggle('stop', a === 'unload'); ub.textContent = a === 'unload' ? 'Stopp' : 'Entladung abspielen';
+  const cb = $('#chainBtn'); if (cb){ cb.classList.toggle('stop', a === 'chain'); cb.textContent = a === 'chain' ? 'Stopp' : 'Lager bis Flugzeug'; }
 }
-function capKey(){ const A = anim, c = A.cur; return [c ? A.items.indexOf(c.it) : -1, c ? c.s.k : '', A.playing, A.dir, A.speed, A.hold > 0, A.t >= A.T, A.t <= 0].join('|'); }
+function capKey(){ const A = anim, c = A.cur; return [c ? A.items.indexOf(c.it) : -1, c ? c.s.k : '', A.playing, A.dir, A.speed, A.follow, A.hold > 0, A.t >= A.T, A.t <= 0].join('|'); }
 function updateCaption(){ if (!anim) return; if (capKey() !== anim.key) renderCaption(); else { const r = $('#cap-range'); if (r && document.activeElement !== r) r.value = Math.round(anim.t / anim.T * 1000); } }
 function renderCaption(){
   const c = $('#caption'), A = anim; if (!A){ c.hidden = true; return; }
   c.hidden = false;
   const cur = A.cur, tx = cur ? ((A.dir < 0 ? SEGTXT_UN : SEGTXT)[cur.s.k] || ['', '']) : null, idx = cur ? A.items.indexOf(cur.it) : -1;
-  const title = A.mode === 'unload' ? 'Entladung' : 'Beladung';
+  const title = A.mode === 'unload' ? 'Entladung' : A.mode === 'chain' ? 'Lager bis Flugzeug' : 'Beladung';
   let head, txt;
   if (A.hold > 0){ head = 'Fahrzeuge fahren an'; txt = 'Loader und Dollies fahren an die Türen. Die Bühnen stellen sich auf die Höhe der Dollies.'; }
-  else if (cur){ head = `Schritt ${A.dir < 0 ? A.items.length - idx : idx + 1} von ${A.items.length} · ${esc(cur.it.p.label || cur.it.p.id)}`; txt = `<b>${tx[0]}.</b> ${tx[1]}`; }
+  else if (cur){ head = `Schritt ${A.dir < 0 ? A.items.length - idx : idx + 1} von ${A.items.length} · ${esc(cur.it.p.label || cur.it.p.id)}`; txt = `<b>${tx[0]}.</b> ${tx[1]}` + chainExtra(cur); }
   else if (A.t >= A.T){ head = 'Alles geladen'; txt = 'Alle ULDs stehen auf ihren Positionen und sind verriegelt. Jetzt den Ladestatus mit der LIR vergleichen.'; }
   else if (A.t <= 0){ head = A.mode === 'unload' ? 'Alles entladen' : 'Bereit'; txt = A.mode === 'unload' ? 'Alle ULDs sind auf den Dollies. Die Positionen an der Tür kamen zuerst raus.' : 'Mit Start geht es los.'; }
   else { head = 'Nächste ULD'; txt = 'Die nächste ULD kommt.'; }
@@ -1385,7 +1409,7 @@ function renderCaption(){
     <button class="gbtn" data-cap="play" aria-label="${A.playing ? 'Pause' : 'Weiter'}">${A.playing ? '❚❚' : NBSP_PLAY}</button>
     <button class="gbtn${A.playing && A.dir > 0 ? ' on' : ''}" data-cap="fwd" aria-label="Vorwärts abspielen">${NBSP_PLAY}${NBSP_PLAY}</button>
     <button class="gbtn" data-cap="end">Ende</button>
-    <button class="gbtn" data-cap="speed" aria-label="Tempo">×${A.speed}</button>
+    <button class="gbtn" data-cap="speed" aria-label="Tempo">×${A.speed}</button>${A.mode === 'chain' ? `<button class="gbtn${A.follow ? ' on' : ''}" data-cap="follow">Kamera folgt</button>` : ''}
     <input type="range" id="cap-range" min="0" max="1000" value="${Math.round(A.t / A.T * 1000)}" aria-label="Zeitleiste">
     <button class="gbtn" data-cap="stop">Schließen</button>
   </div>`;
@@ -1426,70 +1450,91 @@ const G = GROUND;
 const VEST = {orange:'#FF7A1A', green:'#7ED321', yellow:'#FFD60A', blue:'#3D8BFF', red:'#E53935', navy:'#1E2A44'};
 const SKIN = [0xf1c27d, 0xc68642, 0x8d5524, 0xe0ac69, 0xffdbac, 0xa86b3c, 0x6b4226];
 const TEAM = [
-  {id:'sup', short:'Aufsicht', role:'Vorfeld Aufsicht', en:'Ramp Supervisor', vest:VEST.orange, prop:'tablet',
+  {id:'sup', name:'Sandra', short:'Aufsicht', role:'Vorfeld Aufsicht', en:'Ramp Supervisor', vest:VEST.orange, prop:'tablet',
    where:'Vorne links. Hat alles im Blick.',
    tasks:['Plant die Abfertigung und verteilt die Aufgaben','Holt die LIR von Load Control und gibt sie ans Team','Spricht mit Kapitän und Load Control','Bringt NOTOC und Loadsheet zur Crew','Achtet auf Zeit und Sicherheit'],
    talks:'Load Control, Kapitän, Lademeister', safety:'Gibt das Flugzeug erst frei, wenn das rote Blinklicht aus ist und die Bremsklötze liegen.'},
-  {id:'lm', short:'Lademeister', role:'Lademeister', en:'Loadmaster', vest:VEST.green, prop:'clip',
+  {id:'lm', name:'Murat', short:'Lademeister', role:'Lademeister', en:'Loadmaster', vest:VEST.green, prop:'clip',
    where:'Auf der Bühne vom Hauptdeck Loader an der Tür',
    tasks:['Prüft jede ULD auf Kontur, Schaden und Anhänger','Sagt, welche ULD auf welche Position kommt','Prüft Gefahrgut und die Trennung','Kontrolliert, dass alle Riegel zu sind','Meldet Änderungen und unterschreibt die LIR'],
    talks:'Aufsicht, Loader Fahrer, Lader', safety:'Steht nie zwischen einer fahrenden ULD und der Wand.'},
-  {id:'mdlOp', short:'Loader Fahrer', role:'Fahrer Hauptdeck Loader', en:'Main Deck Loader Operator', vest:VEST.yellow,
+  {id:'mdlOp', name:'Jens', short:'Loader Fahrer', role:'Fahrer Hauptdeck Loader', en:'Main Deck Loader Operator', vest:VEST.yellow,
    where:'Am Pult vom großen Loader links',
    tasks:['Fährt den Loader im Schritttempo an die Haupttür','Hebt die Bühne auf Höhe vom Hauptdeck','Rollt ULDs vom Dolly über die Bühne ins Flugzeug','Senkt die Bühne und fährt weg, wenn alles drin ist'],
    talks:'Lademeister, Schlepperfahrer', safety:'Vor dem Flugzeug eine Bremsprobe machen. Das Geländer oben bleibt zu.'},
-  {id:'inMain', short:'Lader', role:'Lader Hauptdeck', en:'Ramp Agent', vest:VEST.yellow,
+  {id:'inMain', name:'Lena', short:'Lader', role:'Lader Hauptdeck', en:'Ramp Agent', vest:VEST.yellow,
    where:'An der Haupttür im Flugzeug',
    tasks:['Bedient die Rollen (PDU) im Hauptdeck','Schiebt ULDs auf ihre Position','Stellt die Riegel hoch und prüft sie'],
    talks:'Lademeister', safety:'Füße weg von Rollen und Kugelmatte, wenn sie laufen.'},
-  {id:'ldlFOp', short:'Loader vorne', role:'Fahrer Loader Unterdeck vorne', en:'Lower Deck Loader Operator', vest:VEST.yellow,
+  {id:'ldlFOp', name:'Piotr', short:'Loader vorne', role:'Fahrer Loader Unterdeck vorne', en:'Lower Deck Loader Operator', vest:VEST.yellow,
    where:'Rechts vorne an der Tür vom Unterdeck',
    tasks:['Fährt den Loader an die Tür rechts vorne','Lädt P1 bis P4 oder die LD3 vorne','Prüft Riegel und Netz im Unterdeck'],
    talks:'Lademeister, Schlepperfahrer rechts', safety:'Kopf einziehen. Das Unterdeck ist nur 162 cm hoch.'},
-  {id:'ldlAOp', short:'Loader hinten', role:'Fahrer Loader Unterdeck hinten', en:'Lower Deck Loader Operator', vest:VEST.yellow,
+  {id:'ldlAOp', name:'Kevin', short:'Loader hinten', role:'Fahrer Loader Unterdeck hinten', en:'Lower Deck Loader Operator', vest:VEST.yellow,
    where:'Rechts hinten an der Tür vom Unterdeck',
    tasks:['Fährt den Loader an die Tür rechts hinten','Lädt P5 bis P7 oder die LD3 hinten','Prüft Riegel und Netz im Unterdeck'],
    talks:'Lademeister, Schlepperfahrer rechts', safety:'Langsam unter dem Flügel fahren und auf die Höhe achten.'},
-  {id:'bulkIn', short:'Bulk', role:'Lader im Bulk', en:'Bulk Loader', vest:VEST.yellow,
+  {id:'bulkIn', name:'Ali', short:'Bulk', role:'Lader im Bulk', en:'Bulk Loader', vest:VEST.yellow,
    where:'Kniet an der kleinen Bulk Tür',
    tasks:['Nimmt lose Stücke vom Band','Stapelt im Bulk, schwer unten und leicht oben','Sichert alles mit dem Netz'],
    talks:'Lader am Band', safety:'Im Bulk ist es eng und niedrig. Rücken schonen und richtig heben.'},
-  {id:'bulkOut', short:'Band', role:'Lader am Band', en:'Ramp Agent', vest:VEST.yellow,
+  {id:'bulkOut', name:'Nina', short:'Band', role:'Lader am Band', en:'Ramp Agent', vest:VEST.yellow,
    where:'Unten am Förderband',
    tasks:['Legt lose Stücke vom Dolly auf das Band','Zählt die Stücke und prüft die Anhänger','Achtet auf Gefahrgut Etiketten'],
    talks:'Lader im Bulk, Schlepperfahrer', safety:'Nie auf das laufende Band steigen.'},
-  {id:'tugL', short:'Schlepper', role:'Schlepperfahrer links', en:'Tug Driver', vest:VEST.yellow, attach:'trainL', local:[-0.25,0.3,0], ry:0,
+  {id:'tugL', name:'Ben', short:'Schlepper', role:'Schlepperfahrer links', en:'Tug Driver', vest:VEST.yellow, attach:'trainL', local:[-0.25,0.3,0], ry:0,
    where:'Im Schlepper mit den Dollies links',
    tasks:['Holt ULDs auf Dollies aus der Halle','Stellt die Dollies an den Hauptdeck Loader','Bringt leere Dollies zurück'],
    talks:'Loader Fahrer, Lademeister', safety:'Nur so viele Dollies wie erlaubt. Langsam an Flugzeug und Leuten.'},
-  {id:'tugR', short:'Schlepper', role:'Schlepperfahrer rechts', en:'Tug Driver', vest:VEST.yellow, attach:'trainR', local:[0.25,0.3,0], ry:Math.PI,
+  {id:'tugR', name:'Olga', short:'Schlepper', role:'Schlepperfahrer rechts', en:'Tug Driver', vest:VEST.yellow, attach:'trainR', local:[0.25,0.3,0], ry:Math.PI,
    where:'Im Schlepper mit den Dollies rechts',
    tasks:['Bringt LD3, Paletten und lose Fracht für das Unterdeck','Stellt die Dollies an die Loader rechts und ans Band'],
    talks:'Loader Fahrer rechts, Lader am Band', safety:'Nur so viele Dollies wie erlaubt. Langsam an Flugzeug und Leuten.'},
-  {id:'marsh', short:'Einweiser', role:'Einweiser', en:'Marshaller', vest:VEST.orange, prop:'paddles',
+  {id:'marsh', name:'Sven', short:'Einweiser', role:'Einweiser', en:'Marshaller', vest:VEST.orange, prop:'paddles',
    where:'Bei der Ankunft vor der Nase',
    tasks:['Winkt das Flugzeug mit Kellen auf die Position','Zeigt das Stopp Zeichen','Legt danach die Bremsklötze ans Bugrad','Stellt Pylonen auf'],
    talks:'Piloten, mit Handzeichen', safety:'Steht immer so, dass die Piloten ihn sehen.'},
-  {id:'tech', short:'Techniker', role:'Techniker', en:'Line Mechanic', vest:VEST.blue, prop:'headset',
+  {id:'tech', name:'Daniel', short:'Techniker', role:'Techniker', en:'Line Mechanic', vest:VEST.blue, prop:'headset',
    where:'Vorne am Bodenstrom. Beim Abflug mit Headset am Bugrad.',
    tasks:['Schließt den Bodenstrom (GPU) an','Prüft Reifen, Lecks und Klappen','Spricht beim Pushback per Headset mit dem Cockpit'],
    talks:'Kapitän, Pushback Fahrer', safety:'Beim Pushback immer Sichtkontakt zum Schlepperfahrer.'},
-  {id:'fuel', short:'Betanker', role:'Betanker', en:'Fueler', vest:VEST.red, attach:'fuel', local:[-1.2,0,1.75], ry:-Math.PI / 2,
+  {id:'fuel', name:'Tobias', short:'Betanker', role:'Betanker', en:'Fueler', vest:VEST.red, attach:'fuel', local:[-1.2,0,1.75], ry:-Math.PI / 2,
    where:'Am Tankwagen unter dem rechten Flügel',
    tasks:['Schließt den Schlauch unter dem Flügel an','Tankt die Menge, die die Crew bestellt','Gibt den Tankschein an die Crew'],
    talks:'Kapitän, Aufsicht', safety:'Kein Rauchen, kein Feuer. Der Fahrweg vom Tankwagen bleibt frei.'},
-  {id:'push', short:'Pushback', role:'Pushback Fahrer', en:'Pushback Driver', vest:VEST.yellow, attach:'push', local:[-1.6,0.55,0], ry:0,
+  {id:'push', name:'Hakan', short:'Pushback', role:'Pushback Fahrer', en:'Pushback Driver', vest:VEST.yellow, attach:'push', local:[-1.6,0.55,0], ry:0,
    where:'Im großen Schlepper vor der Nase',
    tasks:['Hängt die Schleppstange ans Bugrad','Schiebt das Flugzeug nach Freigabe rückwärts','Hängt ab und fährt zur Seite'],
    talks:'Techniker mit Headset', safety:'Erst schieben, wenn Headset und Cockpit bereit sind.'},
-  {id:'wing', short:'Flügel', role:'Flügelbeobachter', en:'Wing Walker', vest:VEST.yellow, prop:'wand',
+  {id:'wing', name:'Mia', short:'Flügel', role:'Flügelbeobachter', en:'Wing Walker', vest:VEST.yellow, prop:'wand',
    where:'Beim Abflug an der Flügelspitze links',
    tasks:['Stellt bei der Abfertigung Pylonen auf','Läuft beim Pushback an der Flügelspitze mit','Gibt sofort Stopp, wenn etwas im Weg ist'],
    talks:'Pushback Fahrer, mit Handzeichen', safety:'Abstand zu den Triebwerken halten.'},
-  {id:'cpt', short:'Kapitän', role:'Kapitän', en:'Captain', vest:VEST.navy, uniform:true, prop:'cap',
+  {id:'cpt', name:'Weber', short:'Kapitän', role:'Kapitän', en:'Captain', vest:VEST.navy, uniform:true, prop:'cap',
    where:'Läuft einmal um das Flugzeug',
    tasks:['Macht den Außencheck rund um das Flugzeug','Bekommt NOTOC und Loadsheet und unterschreibt','Entscheidet am Ende, ob das Flugzeug fliegt'],
-   talks:'Aufsicht, Techniker, Betanker', safety:'Muss genau wissen, welches Gefahrgut wo liegt.'}
+   talks:'Aufsicht, Techniker, Betanker', safety:'Muss genau wissen, welches Gefahrgut wo liegt.'},
+  {id:'bsup', name:'Carina', short:'Lagerleitung', role:'Lagerleitung Build Up', en:'Build Up Supervisor', vest:VEST.orange, prop:'tablet', wh:true,
+   where:'Im Lager', tasks:['Plant, welche ULD wann gebaut wird','Achtet auf die Cut Off Zeiten','Gibt fertige ULDs für das Vorfeld frei'],
+   talks:'Load Control, Vorfeld Aufsicht', safety:'Wege für Stapler und Fußgänger trennen.'},
+  {id:'bld1', name:'Erik', short:'Palettenbau', role:'Palettenbauer', en:'Build Up Agent', vest:VEST.yellow, wh:true,
+   where:'Im Lager an den Baustationen', tasks:['Baut ULDs nach Plan auf','Stellt schwere Stücke nach unten und leichte nach oben','Legt Netz und Gurte an'],
+   talks:'Lagerleitung, Kontrolle', safety:'Richtig heben. Nie unter eine angehobene Last.'},
+  {id:'bld2', name:'Fatma', short:'Palettenbau', role:'Palettenbauerin', en:'Build Up Agent', vest:VEST.yellow, wh:true,
+   where:'Im Lager an den Baustationen', tasks:['Baut ULDs nach Plan auf','Füllt AKE, AKH und Kühlcontainer','Prüft Etiketten und Stückzahl'],
+   talks:'Lagerleitung, Kontrolle', safety:'Richtig heben. Nie unter eine angehobene Last.'},
+  {id:'chk', name:'Jana', short:'Kontrolle', role:'Kontrolle Waage und Kontur', en:'Build Up Check', vest:VEST.green, wh:true,
+   where:'An Konturlehre und Waage', tasks:['Prüft jede ULD in der Konturlehre','Wiegt die ULD und meldet das Gewicht an Load Control','Schickt zu hohe ULDs zurück zum Umbau'],
+   talks:'Load Control, Palettenbauer', safety:'Nie vor einer rollenden ULD stehen.'},
+  {id:'dgc', name:'Thomas', short:'Gefahrgut', role:'Gefahrgut Kontrolle', en:'DG Acceptance', vest:VEST.red, wh:true,
+   where:'Im Lager am Gefahrgut Bereich', tasks:['Prüft Gefahrgut Papiere und Etiketten','Kontrolliert die Trennung auf der ULD','Liefert die Angaben für die NOTOC'],
+   talks:'Lagerleitung, Vorfeld Aufsicht', safety:'Beschädigtes Gefahrgut sofort absperren und melden.'},
+  {id:'fork', name:'Lukas', short:'Stapler', role:'Staplerfahrer', en:'Forklift Driver', vest:VEST.yellow, wh:true, attach:'fork', local:[-0.4,0.35,0], ry:0,
+   where:'Im Lager mit dem Stapler', tasks:['Holt Stücke aus dem Regal','Bringt sie an die Baustation'],
+   talks:'Palettenbauer', safety:'Langsam fahren, Blick in Fahrtrichtung, an Ecken hupen.'},
+  {id:'shut', name:'Yusuf', short:'Schlepper Lager', role:'Schlepperfahrer Lager', en:'Tug Driver Warehouse', vest:VEST.yellow, wh:true, attach:'shuttle', local:[3.65,0.3,0], ry:0,
+   where:'Zwischen Lager und Flugzeug', tasks:['Holt fertige ULDs an der Waage ab','Fährt sie übers Vorfeld zum Loader'],
+   talks:'Kontrolle, Loader Fahrer', safety:'Nur auf Fahrwegen fahren. Abstand zu laufenden Triebwerken.'}
 ];
 const TEAM_BY = Object.fromEntries(TEAM.map(w => [w.id, w]));
 const PHASES = {arr:'Ankunft', turn:'Abfertigung', dep:'Abflug'};
@@ -1528,6 +1573,14 @@ const W_POSES = {
   marsh:{arr:{x:-15, z:0, ry:0, act:'marshal'}, turn:{x:3.7, z:1.3, ry:0}, dep:{x:-11, z:26}},
   cpt:{arr:{x:4.3, z:9.4, vis:false}, turn:{x:-1.5, z:3, path:CPT_PATH, speed:1.4}, dep:{x:4.3, z:9.4, vis:false}}
 };
+(() => {
+  const same = P => ({arr:Object.assign({}, P), turn:Object.assign({}, P), dep:Object.assign({}, P)});
+  W_POSES.bsup = same({x:-41, z:55.6, path:[[-41,55.6],[-34,55.6]], speed:0.7});
+  W_POSES.bld1 = same({x:-51.8, z:52.4, path:[[-51.8,52.4],[-47.5,57.5],[-51.8,52.4]], speed:0.8});
+  W_POSES.bld2 = same({x:-48.2, z:47.6, path:[[-48.2,47.6],[-42.5,42.5],[-48.2,47.6]], speed:0.8});
+  W_POSES.chk = same({x:-30.3, z:52.6, ry:Math.PI / 2});
+  W_POSES.dgc = same({x:-36.5, z:44.2, ry:-Math.PI / 2});
+})();
 const TIMELINE = [
   ['Einwinken und parken',0,3,'arr','marsh'],
   ['Bremsklötze, Pylonen, rotes Licht aus',2,5,'arr','marsh'],
@@ -1745,7 +1798,7 @@ function buildApron(t){
   ground.rotation.x = -Math.PI / 2; ground.position.set(25, G - 0.02, 0); A.add(ground);
   // Rote Linie (ERA)
   const era = (x0, z0, x1, z1) => { const w = Math.abs(x1 - x0) || 0.25, d = Math.abs(z1 - z0) || 0.25; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), AM.red); m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, G + 0.012, (z0 + z1) / 2); A.add(m); };
-  era(-8, -26, 60, -26); era(-8, 26, 60, 26); era(-8, -26, -8, 26); era(60, -26, 60, 26);
+  t.eraG = new THREE.Group(); A.add(t.eraG); layoutEra(t);
   // Abstellflächen und Fahrstraße
   const pl = [];
   const rect = (x0, z0, x1, z1) => pl.push(x0, G + 0.015, z0, x1, G + 0.015, z0, x1, G + 0.015, z0, x1, G + 0.015, z1, x1, G + 0.015, z1, x0, G + 0.015, z1, x0, G + 0.015, z1, x0, G + 0.015, z0);
@@ -1780,6 +1833,7 @@ function buildApron(t){
   add('gpu', buildGpu());
   add('fuel', buildFuel());
   add('stairs', buildStairs());
+  buildWarehouse(t, A);
   // Bremsklötze und Pylonen
   t.chocks = new THREE.Group(); A.add(t.chocks);
   [[4.35, 0], [5.65, 0], [24.0, 4.6], [26.8, 4.6], [24.0, -4.6], [26.8, -4.6]].forEach(([x,z]) => bx(t.chocks, 0.32, 0.26, 0.9, x, G + 0.13, z, AM.yellow));
@@ -1854,6 +1908,7 @@ function stepWorker(w, dt, t){
   w.body.scale.y = (!w.tr && P.act === 'kneel') ? 0.68 : 1;
 }
 function stepApron(dt, t){
+  stepWarehouse(dt);
   for (const id in T.gse){
     const o = T.gse[id]; if (!o.tr) continue; const tr = o.tr; tr.k = Math.min(1, tr.k + dt / tr.dur); const e = ease(tr.k);
     o.g.position.x = tr.fx + (tr.tx - tr.fx) * e; o.g.position.z = tr.fz + (tr.tz - tr.fz) * e;
@@ -1877,7 +1932,7 @@ function applyApron(){
   T.apronG.visible = state.apron; T.grid.visible = !state.apron;
   T.workers.forEach(w => {
     const nm = state.names[w.def.id];
-    w.label.material.map = workerTex(nm || w.def.short, nm ? w.def.short : '', w.def.vest); w.label.material.needsUpdate = true;
+    w.label.material.map = workerTex(nm || w.def.name || w.def.short, w.def.short, w.def.vest); w.label.material.needsUpdate = true;
     w.label.visible = state.labels; w.ring.visible = state.selWorker === w.def.id;
   });
   T.eraTag.visible = state.labels;
@@ -1909,13 +1964,13 @@ function renderTeamTab(){
   </div>
   ${processHtml()}
   <div class="team-list">${TEAM.map(w => { const nm = state.names[w.id] || ''; return `<details class="wcard" data-w="${w.id}"${sel === w.id ? ' open' : ''}>
-    <summary><span class="wdot" style="--c:${w.vest}"></span><span class="wrole"><b>${esc(w.role)}</b><small>${esc(nm || w.en)}</small></span><button class="btn sm" data-wshow="${w.id}">Zeigen</button></summary>
+    <summary><span class="wdot" style="--c:${w.vest}"></span><span class="wrole"><b>${esc(nm || w.name || '')} · ${esc(w.role)}</b><small>${esc(w.en)}</small></span><button class="btn sm" data-wshow="${w.id}">Zeigen</button></summary>
     <div class="wbody">
       <p><b>Wo</b> ${esc(w.where)}</p>
       <ul>${w.tasks.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p><b>Spricht mit</b> ${esc(w.talks)}</p>
       <p class="wsafe">${esc(w.safety)}</p>
-      <label class="field"><span class="flabel">Name (freiwillig)</span><input type="text" id="wn-${w.id}" value="${esc(nm)}" placeholder="z. B. Vorname vom Kollegen" maxlength="30" autocomplete="off"></label>
+      <label class="field"><span class="flabel">Name (freiwillig)</span><input type="text" id="wn-${w.id}" value="${esc(nm)}" placeholder="${esc(w.name || '')}" maxlength="30" autocomplete="off"></label>
     </div></details>`; }).join('')}</div>
   <div class="card" style="display:flex;flex-direction:column;gap:10px">
     <div class="sec-title">Ablauf einer Abfertigung</div>
@@ -1978,7 +2033,7 @@ function uldSpecHtml(p, e){
   if (!e || !e.uld) return '';
   if (e.uld === 'BULK') return '<p class="lead" style="font-size:13.5px">Lose Fracht. Keine ULD, kein Eigengewicht.</p>';
   const U = A300F.ULD[e.uld]; if (!U) return '';
-  const m = U.mgw[p.deck === 'main' ? 'main' : 'lower'], d = A300F.rules.doorCheck(e.uld, p.contour, e.loadH, p.door || p.comp);
+  const m = U.mgw[p.deck === 'main' ? 'main' : 'lower'], d = A300F.rules.doorCheck(e.uld, A300F.contourFor(p, e.uld), e.loadH, p.door || p.comp);
   const bt = e.build ? A300F.rules.checkBuild(e.build).totals : null;
   return `<div class="uldspec"><div class="sec-title">ULD ${esc(e.uld)}</div><dl class="facts">
     <div><dt>Grundfläche</dt><dd>${esc(U.info)}</dd></div>
@@ -2029,7 +2084,7 @@ function wbOut(){
 const PROCESS = [
   {id:'arr', t:'Ankunft', what:'Das Flugzeug rollt auf die Position. Triebwerke aus, Bremsklötze, Pylonen, Bodenstrom.', why:'Erst wenn das rote Blinklicht aus ist und die Bremsklötze liegen, ist es sicher, ans Flugzeug zu gehen.', btn:'Ankunft zeigen'},
   {id:'unload', t:'Entladung', what:'Loader an die Türen. ULDs nach dem Entladeplan raus und auf die Dollies.', why:'Express und Ware für Anschlussflüge stehen an der Tür. Sie kommen zuerst raus.', btn:'Entladung abspielen'},
-  {id:'build', t:'Exportfracht vorbereiten', what:'Stücke wiegen und messen, ULDs zuordnen, Paletten bauen und sichern, Kontur prüfen.', why:'Nur eine ULD in der Kontur passt durch Tür und Rumpf. Ein falsches Gewicht verfälscht den Schwerpunkt.', btn:'Zum ULD Aufbau'},
+  {id:'build', t:'Exportfracht vorbereiten', what:'Stücke wiegen und messen, ULDs zuordnen, Paletten bauen und sichern, Kontur prüfen.', why:'Nur eine ULD in der Kontur passt durch Tür und Rumpf. Ein falsches Gewicht verfälscht den Schwerpunkt.', btn:'Zum ULD Aufbau', btn2:'Lager Animation', id2:'chain'},
   {id:'plan', t:'Ladeplanung', what:'ULDs auf Positionen verteilen, Gewicht und Schwerpunkt prüfen, Ladeanweisung (LIR) erstellen.', why:'Load Control rechnet mit diesen Gewichten das Loadsheet. Ein Fehler hier kann den Flug gefährden.', btn:'Zum Ladeplan'},
   {id:'load', t:'Beladung', what:'Schlepper bringen die ULDs. Der Loader hebt sie auf Türhöhe, sie rollen auf ihre Position, Riegel zu.', why:'Die Reihenfolge verhindert, dass ULDs sich blockieren. Die Riegel halten die Last im Flug.', btn:'Beladung abspielen'},
   {id:'dep', t:'Abschluss', what:'Beladung prüfen, Abweichungen melden, Unterlagen abschließen, Türen zu, Geräte weg, Pushback vorbereiten.', why:'Loadsheet und NOTOC müssen genau zur echten Beladung passen. Die Crew verlässt sich darauf.', btn:'Abschluss zeigen'}
@@ -2037,13 +2092,13 @@ const PROCESS = [
 function processHtml(){
   return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
     <div class="sec-title">Ablauf in 6 Schritten</div>
-    <div class="proc">${PROCESS.map((s, i) => `<div class="proc-step"><span class="proc-n">${i + 1}</span><div><h4>${s.t}</h4><p>${s.what}</p><p class="proc-why"><b>Warum?</b> ${s.why}</p><div style="margin-top:8px"><button class="btn sm" data-proc="${s.id}">${s.btn}</button></div></div></div>`).join('')}</div>
+    <div class="proc">${PROCESS.map((s, i) => `<div class="proc-step"><span class="proc-n">${i + 1}</span><div><h4>${s.t}</h4><p>${s.what}</p><p class="proc-why"><b>Warum?</b> ${s.why}</p><div style="margin-top:8px"><button class="btn sm" data-proc="${s.id}">${s.btn}</button>${s.btn2 ? ` <button class="btn sm" data-proc="${s.id2}">${s.btn2}</button>` : ''}</div></div></div>`).join('')}</div>
   </div>`;
 }
 function runProc(a){
   if (anim) stopAnim();
   if (a === 'arr' || a === 'dep'){ if (!state.apron){ state.apron = true; } setPhase(a); goView('apron'); return; }
-  if (a === 'unload' || a === 'load'){ if (!state.apron){ state.apron = true; renderToolbar(); apply3D(); } startAnim(a); return; }
+  if (a === 'unload' || a === 'load' || a === 'chain'){ if (!state.apron){ state.apron = true; renderToolbar(); apply3D(); } startAnim(a); return; }
   if (a === 'build'){ setTab('build'); return; }
   if (a === 'plan'){ setTab('plan'); const w = $('#wb-box'); if (w) w.scrollIntoView({block:'start', behavior:reduced ? 'auto' : 'smooth'}); }
 }
@@ -2065,6 +2120,7 @@ function renderSpec(){
   $('#info-spec').innerHTML = `<div class="tablewrap"><table class="spec2"><thead><tr><th>Wert</th><th>Angabe</th><th>Status</th></tr></thead><tbody>${rows.map(r => tr(...r)).join('')}</tbody></table></div>
     <h4>Die vier ULD Typen</h4><div class="tablewrap"><table class="spec2"><thead><tr><th>Typ</th><th>Daten</th></tr></thead><tbody>${urows}</tbody></table></div>
     <p class="src">Status ${Object.values(A300F.STATUS).map(s => `<span class="st ${s.cls}">${s.label}</span>`).join(' ')}. Bei Widerspruch gilt im Training der vorsichtigere Wert. Die Airbus Dokumente selbst konnten aus dieser Umgebung nicht geöffnet werden. Die Werte wurden über die Websuche mit Airbus und weiteren Quellen abgeglichen.</p>`;
+  $('#info-spec').insertAdjacentHTML('beforeend', fleetSpecHtml());
   $('#info-src').innerHTML = Object.values(S).filter(s => s.url).map(s => `<li><a href="${s.url}" target="_blank" rel="noopener">${esc(s.name)}</a></li>`).join('');
 }
 function builderCtx(){
@@ -2079,6 +2135,421 @@ function builderCtx(){
       state.plan[pid] = e; changed();
       return A300F.rules.positionCheck(BYID[pid], e);
     }};
+}
+
+/* ---------- Flugzeugtypen, Lager und Kette Lager bis Flugzeug ---------- */
+const curAC = () => A300F.FLEET[state.ac] || A300F.FLEET.A300F;
+function applyAircraftGlobals(){
+  const AC = curAC(); A300F.curAC = AC;
+  R = AC.R; CY = AC.cy; MAIN_Y = AC.cy + AC.mainOff; LOW_Y = AC.cy + AC.lowOff; PAYLOAD = AC.payload.v;
+  DOOR_TXT.main = AC.doors.main ? 'Hauptdeck Tür, ' + (AC.id === 'A300F' ? 'links vorne' : AC.doors.main.side) : 'keine Hauptdeck Tür';
+}
+const doorX = k => { const d = curAC().doors[k]; return d ? d.x0 + d.w / 2 : 0; };
+const mainSide = () => 1;
+function mapXZ(x, z){
+  const AC = curAC(); if (AC.id === 'A300F') return [x, z];
+  const nx = x <= 0 ? x : x <= 54.08 ? x * AC.L / 54.08 : x - 54.08 + AC.L;
+  const az = Math.abs(z), sg = z < 0 ? -1 : 1, hs = AC.span / 2; let nz;
+  if (az <= 2.82) nz = z * AC.R / 2.82;
+  else if (az <= 22.42) nz = sg * (AC.R + (az - 2.82) * (hs - AC.R) / (22.42 - 2.82));
+  else nz = sg * (hs + az - 22.42);
+  return [nx, nz];
+}
+function ensureFleetProf(){
+  if (PROF.q6L) return;
+  PROF.q6L = [[0.05,0],[2.488,0],[2.488,1.75],[1.55,2.438],[0.05,2.438]]; PROF.q6R = PROF.q6L.map(([z,h]) => [-z,h]);
+  PROF.q7L = [[0.05,0],[2.488,0],[2.488,2.0],[1.45,2.997],[0.05,2.997]]; PROF.q7R = PROF.q7L.map(([z,h]) => [-z,h]);
+  PROF.n777 = [[-1.5875,0],[1.5875,0],[1.5875,1.70],[1.1,2.438],[-1.1,2.438],[-1.5875,1.70]];
+  PROF.ldPmc = [[-1.5875,0],[1.5875,0],[1.5875,1.15],[1.25,1.626],[-1.25,1.626],[-1.5875,1.15]];
+  PROF.akh = [[-0.781,0],[0.781,0],[1.219,0.54],[1.219,1.143],[-1.219,1.143],[-1.219,0.54]];
+  PROF.bulkS = [[-0.9,0],[0.9,0],[0.9,0.7],[0.6,0.95],[-0.6,0.95],[-0.9,0.7]];
+}
+function buildPositionsFleet(){
+  ensureFleetProf(); const AC = curAC(), L = [], orders = {};
+  if (AC.id === 'B777F'){
+    L.push(mk({id:'N', deck:'main', x0:6.6, len:2.44, prof:'n777', y0:MAIN_Y, uld:['PMC'], contour:'Q6_N', maxH:'bis 243,8 cm (Q6)', size:'96 × 125 in', accessible:true}));
+    for (let r = 1; r <= 13; r++){
+      const x0 = 9.2 + (r - 1) * 3.24, q7 = r >= 3 && r <= 11, k = q7 ? 'q7' : 'q6', c = q7 ? 'Q7' : 'Q6';
+      ['R','L'].forEach(sd => L.push(mk({id:r + sd, deck:'main', side:sd, x0, len:3.18, prof:k + sd, y0:MAIN_Y, uld:['PMC'], contour:c + '_' + sd, maxH:q7 ? 'bis 299,7 cm (Q7)' : 'bis 243,8 cm (Q6)', size:'96 × 125 in', accessible:r === 1})));
+    }
+    const lp = (id, comp, x0) => L.push(mk({id, deck:'lower', comp, x0, len:2.44, prof:'ldPmc', y0:LOW_Y, uld:['PMC','PAG','PAJ','RAP','RLP'], contour:{PMC:'LD_PMC', PAG:'LD_PAL', PAJ:'LD_PAL'}, maxH:'bis 162,6 cm', size:'96 × 125 in'}));
+    for (let i = 0; i < 6; i++) lp('F' + (i + 1), 'lfwd', 8.8 + i * 2.52);
+    for (let i = 0; i < 4; i++) lp('A' + (i + 1), 'laft', 34.0 + i * 2.52);
+    L.push(mk({id:'BULK', label:'Bulk', deck:'lower', comp:'laft', x0:44.6, len:3.4, prof:'bulk', y0:LOW_Y, uld:['BULK'], contour:null, maxH:'lose Stücke', size:'Raum für lose Fracht', door:'bulk'}));
+    const o = ['N']; for (let r = 1; r <= 10; r++) o.push(r + 'R', r + 'L'); o.push('13R','13L','11R','11L','12R','12L'); orders.main = o;
+    orders.lfwd = ['F6','F5','F4','F3','F2','F1']; orders.laft = ['A1','A2','A3','A4','BULK'];
+  } else {
+    const ap = (id, comp, x0) => L.push(mk({id, deck:'lower', comp, x0, len:1.53, prof:'akh', y0:LOW_Y, uld:['AKH'], contour:'AKH', maxH:'Container 114,3 cm', size:'AKH, Boden 156,2 × 153,4 cm'}));
+    const fw = [], af = [];
+    for (let i = 0; i < AC.nF; i++){ ap(String(11 + i), 'lfwd', AC.fwdX + i * 1.56); fw.push(String(11 + i)); }
+    for (let i = 0; i < AC.nA; i++){ ap(String(31 + i), 'laft', AC.aftX + i * 1.56); af.push(String(31 + i)); }
+    L.push(mk({id:'BULK', label:'Bulk', deck:'lower', comp:'laft', x0:AC.aftX + AC.nA * 1.56 + 0.3, len:2.4, prof:'bulkS', y0:LOW_Y, uld:['BULK'], contour:null, maxH:'lose Stücke und Koffer', size:'Raum für lose Fracht', door:'bulk'}));
+    orders.main = []; orders.lfwd = fw.slice().reverse(); orders.laft = af.concat(['BULK']);
+  }
+  L.forEach(p => { const o = orders[p.comp]; p.order = o.indexOf(p.id) + 1; p.orderTotal = o.length; });
+  return L;
+}
+function exampleFleetPlan(){
+  const P = buildPositionsFleet(), plan = {}, cats = ['xps','gen','per','gen','dgr','gen','mal','gen','gen','uld','gen','xps'];
+  P.forEach((p, i) => {
+    if (p.id === 'BULK'){ plan.BULK = {cat:'gen', uld:'BULK', kg:450, note:'Koffer und lose Stücke'}; return; }
+    const cat = cats[i % cats.length]; let uld = p.uld[0];
+    if (p.uld.includes('RAP') && cat === 'per') uld = 'RAP';
+    if (p.uld.includes('RLP') && i % 7 === 3) uld = 'RLP';
+    const base = uld === 'AKH' ? 420 : uld === 'RAP' ? 2600 : uld === 'RLP' ? 1700 : p.deck === 'main' ? 2300 : 2000;
+    const e = {cat, uld, kg:Math.round((base + (uld === 'AKH' ? (i * 53) % 250 : (i * 137) % 900)) / 10) * 10};
+    if (cat === 'dgr'){ e.dg = ['9']; e.un = 'UN3481'; e.note = 'Lithium Ionen in Geräten'; }
+    if (cat === 'per') e.note = uld === 'RAP' ? 'Pharma 2 bis 8 °C' : 'Frische Ware';
+    plan[p.id] = e;
+  });
+  return plan;
+}
+function tailGeoP(x0, x1, Rr){
+  const segs = 22, rad = 48, L = x1 - x0, v = [], idx = [];
+  for (let i = 0; i <= segs; i++){ const tt = i / segs, x = x0 + tt * L, r = Rr * (1 - 0.88 * Math.pow(tt, 1.15)), cy = (Rr - r) * 0.82;
+    for (let j = 0; j <= rad; j++){ const a = j / rad * Math.PI * 2; v.push(x, cy + r * Math.cos(a), r * Math.sin(a)); } }
+  for (let i = 0; i < segs; i++) for (let j = 0; j < rad; j++){ const a = i * (rad + 1) + j, b = a + rad + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+function buildAircraftGeneric(t, AC){
+  const g = new THREE.Group(); g.position.y = AC.cy; t.hull = g; t.scene.add(g);
+  const M = {
+    bodyX:new THREE.MeshPhongMaterial({color:0xcfdbe6, transparent:true, opacity:0.10, side:THREE.DoubleSide, depthWrite:false, shininess:80, specular:0x445566}),
+    partX:new THREE.MeshPhongMaterial({color:0xb9c9d8, transparent:true, opacity:0.22, side:THREE.DoubleSide, depthWrite:false, shininess:40}),
+    bodyP:new THREE.MeshPhongMaterial({color:0xffcc00, shininess:35, side:THREE.DoubleSide}),
+    partP:new THREE.MeshPhongMaterial({color:0xc9d3dc, shininess:30, side:THREE.DoubleSide}),
+    dark:new THREE.MeshPhongMaterial({color:0x1b2530, shininess:60}),
+    finP:new THREE.MeshPhongMaterial({color:0xffcc00, shininess:35, side:THREE.DoubleSide}),
+    livery:new THREE.MeshPhongMaterial({map:liveryTex(), shininess:35, side:THREE.DoubleSide})
+  };
+  t.M = M; t.skin = []; t.cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+  const add = (geo, kind) => { const m = new THREE.Mesh(geo, kind === 'body' ? M.bodyX : M.partX); m.userData.kind = kind; t.skin.push(m); g.add(m); return m; };
+  const Rr = AC.R, nl = AC.noseLen, ts = AC.tailStart, gy = GROUND - AC.cy;
+  const body = new THREE.CylinderGeometry(Rr, Rr, ts - nl, 64, 1, true); body.rotateZ(Math.PI / 2);
+  const bm = add(body, 'body'); bm.position.x = (nl + ts) / 2; bm.userData.livery = true;
+  const dr = 0.55 * Rr / 2.82;
+  const droop = geo => { const pa = geo.attributes.position; for (let i = 0; i < pa.count; i++){ const x = pa.getX(i), tt = -x / nl; pa.setY(i, pa.getY(i) - dr * tt * tt); } geo.computeVertexNormals(); };
+  const nose = new THREE.SphereGeometry(Rr, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2); nose.rotateZ(Math.PI / 2); nose.scale(nl / Rr, 1, 1); droop(nose);
+  add(nose, 'body').position.x = nl;
+  const win = new THREE.SphereGeometry(Rr * 1.006, 24, 4, Math.PI - 0.8, 1.6, 0.98, 0.2); win.rotateZ(Math.PI / 2); win.scale(nl / Rr, 1, 1); droop(win);
+  const wm = new THREE.Mesh(win, M.dark); wm.position.x = nl; g.add(wm); t.windows = wm;
+  add(tailGeoP(ts, AC.L, Rr), 'body');
+  const rp = []; for (let x = nl + 1; x <= ts - 0.4; x += 1.6) for (let j = 0; j < 48; j++){ const a1 = j / 48 * Math.PI * 2, a2 = (j + 1) / 48 * Math.PI * 2; rp.push(x, Rr * Math.cos(a1), Rr * Math.sin(a1), x, Rr * Math.cos(a2), Rr * Math.sin(a2)); }
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3));
+  t.rings = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({color:0x9fb6c9, transparent:true, opacity:0.13})); g.add(t.rings);
+  const W = AC.wing, hs = AC.span / 2, E = AC.eng, S = AC.stab, F = AC.fin, Gr = AC.gear;
+  [1, -1].forEach(side => {
+    const pts = [[W.le, Rr * 0.7], [W.tipLe, hs], [W.tipLe + W.tipChord, hs], [W.le + W.chord * 0.92, Rr + (hs - Rr) * 0.33], [W.le + W.chord, Rr * 0.7]];
+    const geo = new THREE.ExtrudeGeometry(flatShape(pts.map(([x, z]) => [x, z * side])), {depth:0.12 + 0.28 * Rr / 2.82, bevelEnabled:false}); geo.rotateX(Math.PI / 2);
+    const m = add(geo, 'part'); m.position.y = W.y; m.rotation.x = -side * W.dih;
+    const nac = new THREE.CylinderGeometry(E.r, E.r * 0.85, E.len, 32, 1, false); nac.rotateZ(Math.PI / 2);
+    add(nac, 'part').position.set(E.x, E.y, side * E.z);
+    const intake = new THREE.Mesh(new THREE.CircleGeometry(E.r * 0.9, 28), M.dark); intake.rotation.y = -Math.PI / 2; intake.position.set(E.x - E.len / 2 - 0.02, E.y, side * E.z); g.add(intake);
+    const py = W.y + side * E.z * W.dih * 0 - 0.1;
+    add(new THREE.BoxGeometry(E.len * 0.7, Math.max(0.4, py - (E.y + E.r) + 0.5), 0.3), 'part').position.set(E.x + E.len * 0.25, (py + E.y + E.r) / 2, side * E.z);
+    const hsg = new THREE.ExtrudeGeometry(flatShape([[S.x0, 0.4], [S.tipLe, S.span], [S.tipLe + S.tipChord, S.span], [S.x0 + S.chord, 0.4]].map(([x, z]) => [x, z * side])), {depth:0.2, bevelEnabled:false}); hsg.rotateX(Math.PI / 2);
+    const hm = add(hsg, 'part'); hm.position.y = S.y; hm.rotation.x = -side * 0.06;
+    const zg = Gr.z * side, wr = Gr.wr, n = Gr.six ? 3 : 2;
+    add(new THREE.CylinderGeometry(0.17, 0.17, Math.max(0.5, W.y - gy - wr), 10), 'part').position.set(Gr.main, (W.y + gy + wr) / 2, zg);
+    for (let a = 0; a < n; a++) [-0.42, 0.42].forEach(dz => { const wg = new THREE.CylinderGeometry(wr, wr, 0.38, 18); wg.rotateX(Math.PI / 2); const w = new THREE.Mesh(wg, M.dark); w.position.set(Gr.main + (a - (n - 1) / 2) * wr * 2.3, gy + wr, zg + dz); g.add(w); });
+  });
+  const finTop = GROUND + AC.H - AC.cy;
+  const fin = new THREE.ExtrudeGeometry(flatShape([[F.x0, Rr * 0.95], [F.tipLe, finTop], [F.tipLe + F.tipChord, finTop], [AC.L - 0.5, Rr * 0.84]]), {depth:0.3, bevelEnabled:false}); fin.translate(0, 0, -0.15);
+  add(fin, 'part').userData.fin = true;
+  const nw = Gr.wr * 0.7;
+  add(new THREE.CylinderGeometry(0.12, 0.12, Math.max(0.5, -Rr * 0.7 - gy - nw), 10), 'part').position.set(Gr.nose, (-Rr * 0.7 + gy + nw) / 2, 0);
+  [-0.28, 0.28].forEach(dz => { const wg = new THREE.CylinderGeometry(nw, nw, 0.28, 16); wg.rotateX(Math.PI / 2); const w = new THREE.Mesh(wg, M.dark); w.position.set(Gr.nose, gy + nw, dz); g.add(w); });
+}
+function buildAircraftFor(t){ if (state.ac === 'A300F') buildAircraft(t); else buildAircraftGeneric(t, curAC()); }
+function buildDecksFor(t){
+  if (state.ac === 'A300F') return buildDecks(t);
+  const AC = curAC();
+  t.deckMain = new THREE.Group(); t.deckLow = new THREE.Group(); t.scene.add(t.deckMain, t.deckLow);
+  const floorMat = new THREE.MeshStandardMaterial({color:0x34495c, roughness:0.8, metalness:0.2, transparent:true, opacity:0.6, depthWrite:false, side:THREE.DoubleSide});
+  const railM = new THREE.MeshStandardMaterial({color:0x8a9aa8, metalness:0.6, roughness:0.4});
+  const ri = AC.R - 0.15, hw = y => Math.sqrt(Math.max(0.1, ri * ri - (y - AC.cy) * (y - AC.cy)));
+  const x0 = AC.noseLen + 0.3, x1 = AC.tailStart - 0.3;
+  if (AC.cargoMain){
+    const w = hw(MAIN_Y) * 2 - 0.1, f = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.05, w), floorMat); f.position.set((x0 + x1) / 2, MAIN_Y - 0.03, 0); t.deckMain.add(f);
+    const lp = []; [-0.4, -0.15, 0.15, 0.4].forEach(fr => lp.push(x0, MAIN_Y + 0.01, fr * w, x1, MAIN_Y + 0.01, fr * w));
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); t.deckMain.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({color:0x7d93a6, transparent:true, opacity:0.5})));
+    [-1, 1].forEach(sd => { const r = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.08, 0.06), railM); r.position.set((x0 + x1) / 2, MAIN_Y + 0.04, sd * (w / 2 - 0.1)); t.deckMain.add(r); });
+    const d = AC.doors.main, bp = []; for (let x = d.x0; x <= d.x0 + d.w; x += 0.24) for (let z = -w / 2 + 0.2; z <= w / 2 - 0.2; z += 0.24) bp.push(x, MAIN_Y + 0.02, z);
+    const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3)); t.deckMain.add(new THREE.Points(bg, new THREE.PointsMaterial({color:0xc4d4e2, size:0.07, transparent:true, opacity:0.7})));
+  }
+  t.tag9g = makeTag('9g Barriere', '#6b5a10'); t.tag9g.position.set(AC.barrier || AC.noseLen, MAIN_Y + 2.9, 0); t.deckMain.add(t.tag9g);
+  const lw = hw(LOW_Y + 0.05) * 2;
+  const holds = AC.id === 'B777F' ? [[8.6, 24.2], [33.8, 44.4], [44.4, 48.2]] : [[AC.fwdX - 0.2, AC.fwdX + AC.nF * 1.56 + 0.1], [AC.aftX - 0.2, AC.aftX + AC.nA * 1.56 + 2.9]];
+  holds.forEach(([a, b]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(b - a, 0.05, lw), floorMat); m.position.set((a + b) / 2, LOW_Y - 0.03, 0); t.deckLow.add(m);
+    [-1, 1].forEach(sd => { const r = new THREE.Mesh(new THREE.BoxGeometry(b - a, 0.07, 0.05), railM); r.position.set((a + b) / 2, LOW_Y + 0.035, sd * (lw / 2 - 0.08)); t.deckLow.add(r); }); });
+  const wb = AC.wingBox, wbm = new THREE.Mesh(new THREE.BoxGeometry(wb[1] - wb[0], 1.2, lw), new THREE.MeshBasicMaterial({color:0x6a7f92, transparent:true, opacity:0.10, depthWrite:false}));
+  wbm.position.set((wb[0] + wb[1]) / 2, LOW_Y + 0.65, 0); t.deckLow.add(wbm);
+  t.tagWing = makeTag('Flügelkasten', '#2c3b4a'); t.tagWing.position.set((wb[0] + wb[1]) / 2, LOW_Y + 0.8, 0); t.deckLow.add(t.tagWing);
+}
+function doorDefs(){
+  const AC = curAC(), D = AC.doors, out = [], yr = y => y - CY;
+  if (AC.id === 'A300F') return [
+    [8.3, 11.88, MAIN_Y, MAIN_Y + 2.57, 1, 1.85, 'Tür Hauptdeck', [10.1, -1.3, 4.0]],
+    [8.6, 11.05, LOW_Y, LOW_Y + 1.70, -1, 1.5, 'Tür vorne', [9.8, -3.3, -3.4]],
+    [32.0, 34.45, LOW_Y, LOW_Y + 1.68, -1, 1.5, 'Tür hinten', [33.2, -3.3, -3.4]],
+    [35.5, 36.45, -1.9, -1.26, -1, 1.5, 'Bulk Tür', [36.6, -4.25, -3.2]]];
+  if (D.main) out.push([D.main.x0, D.main.x0 + D.main.w, yr(MAIN_Y), yr(MAIN_Y) + D.main.h, 1, 1.85, 'Tür Hauptdeck', [doorX('main'), GROUND + 3.6, R + 1.2]]);
+  out.push([D.lfwd.x0, D.lfwd.x0 + D.lfwd.w, yr(LOW_Y), yr(LOW_Y) + D.lfwd.h, -1, 1.5, 'Tür vorne', [doorX('lfwd'), GROUND + 1.7, -(R + 0.6)]]);
+  out.push([D.laft.x0, D.laft.x0 + D.laft.w, yr(LOW_Y), yr(LOW_Y) + D.laft.h, -1, 1.5, 'Tür hinten', [doorX('laft'), GROUND + 1.7, -(R + 0.6)]]);
+  out.push([D.bulk.x0, D.bulk.x0 + D.bulk.w, yr(LOW_Y) + 0.15, yr(LOW_Y) + 0.15 + D.bulk.h, -1, 1.5, 'Bulk Tür', [doorX('bulk') + 1.0, GROUND + 0.9, -(R + 0.4)]]);
+  return out;
+}
+function rebuildAircraftScene(){
+  if (!T) return;
+  [T.hull, T.deckMain, T.deckLow, T.doorGroup, T.loaders].forEach(o => { if (o && o.parent) o.parent.remove(o); });
+  buildAircraftFor(T); buildDecksFor(T); buildDoors(T);
+  T.tags = [T.tag9g, T.tagWing, ...T.doors.map(d => d.tag), T.cgTag, T.eraTag].concat(T.whTags || []).filter(Boolean);
+  T.dirty = true;
+}
+function changeAircraft(id){
+  if (!A300F.FLEET[id] || id === state.ac) return;
+  if (anim) stopAnim();
+  state.planByAc = state.planByAc || {};
+  state.planByAc[state.ac] = {plan:state.plan, isExample:state.isExample, mainCfg:state.mainCfg, lowerCfg:state.lowerCfg};
+  state.ac = id; applyAircraftGlobals();
+  const pv = state.planByAc[id];
+  if (pv && pv.plan){ state.plan = pv.plan; state.isExample = pv.isExample; if (pv.mainCfg) state.mainCfg = pv.mainCfg; if (pv.lowerCfg) state.lowerCfg = pv.lowerCfg; }
+  else loadExample();
+  state.wb.oew = curAC().oew.v; state.selected = null; state.selWorker = null;
+  POS = buildPositions(); BYID = Object.fromEntries(POS.map(p => [p.id, p]));
+  if (T){ rebuildAircraftScene(); build3DPositions(); adaptPoses(); layoutApron(); setPhase(state.phase, true, true); }
+  save(); renderAll(); renderSpec(); goView(state.apron ? 'apron' : 'iso');
+}
+let BASE_POSES = null;
+function adaptPoses(){
+  if (!BASE_POSES) BASE_POSES = {g:JSON.parse(JSON.stringify(GSE_POSES)), w:JSON.parse(JSON.stringify(W_POSES))};
+  Object.keys(BASE_POSES.g).forEach(k => { GSE_POSES[k] = JSON.parse(JSON.stringify(BASE_POSES.g[k])); });
+  Object.keys(BASE_POSES.w).forEach(k => { W_POSES[k] = JSON.parse(JSON.stringify(BASE_POSES.w[k])); });
+  const AC = curAC(); if (AC.id === 'A300F') return;
+  const m = P => { if (!P) return P; const q = Object.assign({}, P), r = mapXZ(P.x, P.z); q.x = r[0]; q.z = r[1]; if (P.path) q.path = P.path.map(([x, z]) => mapXZ(x, z)); return q; };
+  Object.keys(GSE_POSES).forEach(k => ['arr','turn','dep'].forEach(ph => { GSE_POSES[k][ph] = m(GSE_POSES[k][ph]); }));
+  Object.keys(W_POSES).forEach(k => { if (TEAM_BY[k] && TEAM_BY[k].wh) return; ['arr','turn','dep'].forEach(ph => { W_POSES[k][ph] = m(W_POSES[k][ph]); }); });
+  const tp = (k, o) => Object.assign(GSE_POSES[k].turn, o), wp = (k, o) => Object.assign(W_POSES[k].turn, o), s = mainSide();
+  if (AC.cargoMain){
+    const X = doorX('main'); tp('mdl', {x:X, z:s * (R + 2.48), h:MAIN_Y}); tp('trainL', {x:X + 12.4, z:s * (R + 11.18)});
+    wp('lm', {x:X + 1.2, z:s * (R + 1.48), y:MAIN_Y}); wp('mdlOp', {x:X - 1.1, z:s * (R + 4.28), y:MAIN_Y}); wp('inMain', {x:X - 0.6, z:s * (R + 0.43), y:MAIN_Y});
+  } else {
+    GSE_POSES.mdl.turn = Object.assign({}, GSE_POSES.mdl.arr); GSE_POSES.trainL.turn = Object.assign({}, GSE_POSES.trainL.arr);
+    ['lm','mdlOp','inMain'].forEach(k => { W_POSES[k].turn = Object.assign({}, W_POSES[k].arr); });
+  }
+  tp('ldlF', {x:doorX('lfwd'), z:-(R + 1.38), h:LOW_Y}); tp('ldlA', {x:doorX('laft'), z:-(R + 1.38), h:LOW_Y});
+  tp('belt', {x:doorX('bulk'), z:-(R + 2.78)}); tp('trainR', {x:doorX('lfwd') + 2.17, z:-(R + 11.18)});
+  wp('ldlFOp', {x:doorX('lfwd') - 0.83, z:-(R + 2.78), y:LOW_Y}); wp('ldlAOp', {x:doorX('laft') + 0.8, z:-(R + 2.78), y:LOW_Y});
+  wp('bulkIn', {x:doorX('bulk'), z:-(R + 0.07), y:LOW_Y - 0.02});
+}
+function layoutEra(t){
+  if (!t.eraG) return; t.eraG.clear();
+  const AC = curAC(), x1 = AC.L + 6, zz = AC.span / 2 + 3.6;
+  const strip = (x0, z0, xa, za) => { const w = Math.abs(xa - x0) || 0.25, d = Math.abs(za - z0) || 0.25; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), AM.red); m.rotation.x = -Math.PI / 2; m.position.set((x0 + xa) / 2, G + 0.012, (z0 + za) / 2); t.eraG.add(m); };
+  strip(-8, -zz, x1, -zz); strip(-8, zz, x1, zz); strip(-8, -zz, -8, zz); strip(x1, -zz, x1, zz);
+}
+function layoutApron(){
+  if (!T || !T.apronG) return;
+  const AC = curAC(), hs = AC.span / 2, gx = AC.gear, E = AC.eng;
+  const ch = [[gx.nose - 0.65, 0], [gx.nose + 0.65, 0], [gx.main - 1.4, gx.z], [gx.main + 1.4, gx.z], [gx.main - 1.4, -gx.z], [gx.main + 1.4, -gx.z]];
+  T.chocks.children.forEach((m, i) => { if (ch[i]) m.position.set(ch[i][0], m.position.y, ch[i][1]); });
+  const stx = AC.stab.tipLe + 1.4, sts = AC.stab.span + 1;
+  const cp = [[AC.tipLe + 1.4, hs + 1.6], [AC.tipLe + 1.4, -(hs + 1.6)], [E.x - E.len / 2 - 1.6, E.z], [E.x - E.len / 2 - 1.6, -E.z], [AC.L + 3, 0], [stx, sts], [stx, -sts]];
+  T.cones.children.forEach((m, i) => { const c = cp[Math.floor(i / 2)]; if (c) m.position.set(c[0], m.position.y, c[1]); });
+  layoutEra(T);
+  T.beacons[0].b.position.set(AC.L * 0.41, CY + AC.R + 0.12, 0); T.beacons[1].b.position.set(AC.L * 0.44, CY - AC.R - 0.12, 0);
+  T.beacons.forEach(b => b.gl.position.copy(b.b.position));
+  const nx = gx.nose;
+  T.headCable.geometry.dispose();
+  T.headCable.geometry = new THREE.BufferGeometry().setFromPoints(new THREE.CatmullRomCurve3([[nx + 1.25, G + 1.0, -1.65], [nx + 0.9, G + 0.1, -1.0], [nx + 0.1, G + 0.3, -0.3], [nx, G + 1.4, -0.12]].map(p => new THREE.Vector3(...p))).getPoints(24));
+  T.eraTag.position.set(-8, G + 0.9, hs - 2);
+}
+
+/* Lager: Palettenbau, Konturlehre, Waage */
+const WH = {stations:[{x:-50, z:50}, {x:-44, z:50}, {x:-38, z:50}], gate:{x:-31.5, z:50}, scale:{x:-27, z:50}, exit:{x:-21, z:44}};
+function buildWarehouse(t, A){
+  const W = new THREE.Group(); t.wh = W; A.add(W);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(34, 0.1, 22), new THREE.MeshLambertMaterial({color:0x56606a})); floor.position.set(-45, G + 0.04, 50); W.add(floor);
+  const wallM = new THREE.MeshLambertMaterial({color:0x8fa0ae, transparent:true, opacity:0.3, side:THREE.DoubleSide, depthWrite:false});
+  [[-62, 50, 0.3, 22], [-45, 39, 34, 0.3], [-45, 61, 34, 0.3]].forEach(([x, z, w, d]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 9, d), wallM); m.position.set(x, G + 4.5, z); W.add(m); });
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(34.4, 0.2, 22.4), new THREE.MeshLambertMaterial({color:0x6e7f8e, transparent:true, opacity:0.16, depthWrite:false})); roof.position.set(-45, G + 9, 50); W.add(roof);
+  for (let x = -58; x <= -32; x += 6.5){ const l = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.4), new THREE.MeshBasicMaterial({color:0xfff3cf})); l.position.set(x, G + 8.7, 50); W.add(l); }
+  const rackM = new THREE.MeshLambertMaterial({color:0x2e6fb0}), boxM = [0xc9a77c, 0xb88f62, 0xd6b98c].map(c => new THREE.MeshLambertMaterial({color:c}));
+  for (let i = 0; i < 4; i++){
+    const x = -58 + i * 5.2;
+    [-0.9, 0.9].forEach(dz => { [x, x + 4.8].forEach(px => { const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 6, 0.12), rackM); post.position.set(px, G + 3, 59 + dz); W.add(post); }); });
+    for (let lv = 0; lv < 3; lv++){
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.1, 1.9), rackM); sh.position.set(x + 2.4, G + 0.3 + lv * 2, 59); W.add(sh);
+      for (let b = 0; b < 3; b++){ const hb = 1.0 + (b % 2) * 0.3, bxm = new THREE.Mesh(new THREE.BoxGeometry(1.2, hb, 1.0), boxM[(i + lv + b) % 3]); bxm.position.set(x + 0.8 + b * 1.6, G + 0.35 + lv * 2 + hb / 2, 59); W.add(bxm); }
+    }
+  }
+  WH.stations.forEach(st => {
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.5, 3.4), new THREE.MeshLambertMaterial({color:0x2c3540})); bed.position.set(st.x, G + 0.27, st.z); W.add(bed);
+    const lp = []; for (let z = -1.5; z <= 1.5; z += 0.3) lp.push(st.x - 1.7, G + 0.53, st.z + z, st.x + 1.7, G + 0.53, st.z + z);
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); W.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({color:0x7d93a6})));
+  });
+  t.gateM = new THREE.MeshLambertMaterial({color:0xe2b100, emissive:0x222200});
+  const gx = WH.gate.x, gz = WH.gate.z, gw = 3.8, gh = 3.4;
+  [-1, 1].forEach(sd => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.2, gh, 0.2), t.gateM); p.position.set(gx, G + gh / 2, gz + sd * gw / 2); W.add(p);
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.3, 0.14), t.gateM); sl.position.set(gx, G + gh - 0.45, gz + sd * (gw / 2 - 0.45)); sl.rotation.x = sd * 0.8; W.add(sl); });
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, gw + 0.2), t.gateM); beam.position.set(gx, G + gh, gz); W.add(beam);
+  const sc = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 3.4), new THREE.MeshLambertMaterial({color:0x7a8794})); sc.position.set(WH.scale.x, G + 0.15, WH.scale.z); W.add(sc);
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.2, 0.15), AM.steel); post.position.set(WH.scale.x, G + 1.1, WH.scale.z - 2.2); W.add(post);
+  t.scaleCv = document.createElement('canvas'); t.scaleCv.width = 256; t.scaleCv.height = 96; t.scaleTex = new THREE.CanvasTexture(t.scaleCv);
+  const disp = new THREE.Sprite(new THREE.SpriteMaterial({map:t.scaleTex, depthWrite:false})); disp.scale.set(2.4, 0.9, 1); disp.position.set(WH.scale.x, G + 2.7, WH.scale.z - 2.2); W.add(disp);
+  drawScale('0 kg');
+  const tg1 = makeTag('Lager und Palettenbau', '#2c3b4a'); tg1.position.set(-45, G + 10, 50); W.add(tg1);
+  const tg2 = makeTag('Konturlehre', '#6b5a10'); tg2.position.set(gx, G + gh + 0.9, gz); W.add(tg2);
+  const tg3 = makeTag('Waage', '#2c3b4a'); tg3.position.set(WH.scale.x, G + 3.6, WH.scale.z - 2.2); W.add(tg3);
+  t.whTags = [tg1, tg2, tg3]; t.tags.push(...t.whTags);
+  const fork = new THREE.Group(), fb = new THREE.MeshLambertMaterial({color:0xe2b100});
+  bx(fork, 2.0, 1.0, 1.1, 0, G + 0.75, 0, fb); bx(fork, 0.12, 2.6, 0.9, 1.05, G + 1.5, 0, AM.dark);
+  [-0.3, 0.3].forEach(dz => bx(fork, 1.1, 0.06, 0.12, 1.65, G + 0.25, dz, AM.steel));
+  bx(fork, 0.9, 0.06, 1.0, -0.2, G + 2.2, 0, AM.dark);
+  [[-0.7, -0.5], [-0.7, 0.5], [0.6, -0.5], [0.6, 0.5]].forEach(([x, z]) => wheelZ(fork, x, G + 0.3, z, 0.3, 0.2));
+  bx(fork, 1.0, 0.8, 1.0, 1.65, G + 0.7, 0, boxM[0]);
+  fork.position.set(-56, 0, 42.5); W.add(fork);
+  t.gse.fork = {g:fork, tr:null, h:null, path:[[-56, 42.5], [-56, 56.5], [-34, 56.5], [-34, 42.5]], pi:1};
+  const shg = new THREE.Group(), tug = buildTug(1, AM.blue); tug.position.x = 3.9; shg.add(tug); shg.add(buildDolly(1));
+  shg.visible = false; A.add(shg); t.gse.shuttle = {g:shg, tr:null, h:null};
+  t.bv = new THREE.Group(); t.bv.visible = false; A.add(t.bv);
+}
+function drawScale(txt){
+  if (!T || !T.scaleCv) return; const x = T.scaleCv.getContext('2d');
+  x.fillStyle = '#0b1118'; x.fillRect(0, 0, 256, 96); x.fillStyle = '#39ff8a'; x.font = '700 48px "IBM Plex Mono",monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 128, 50); T.scaleTex.needsUpdate = true;
+}
+function stepWarehouse(dt){
+  const f = T.gse && T.gse.fork; if (!f) return;
+  const tg = f.path[f.pi], g = f.g, dx = tg[0] - g.position.x, dz = tg[1] - g.position.z, d = Math.hypot(dx, dz);
+  if (d < 0.05) f.pi = (f.pi + 1) % f.path.length;
+  else { const st = Math.min(d, 2.2 * dt); g.position.x += dx / d * st; g.position.z += dz / d * st; g.rotation.y = Math.atan2(-dz, dx); }
+}
+
+/* Kette Lager bis Flugzeug */
+const chainCache = {};
+function chainPieces(p){
+  const e = entry(p.id) || {cat:'gen', uld:p.uld[0]};
+  const key = p.id + '|' + state.ac + '|' + (e.build ? 'b' + e.build.pieces.length + e.build.contour : 'p') + '|' + e.uld + '|' + e.cat;
+  if (chainCache[key]) return chainCache[key];
+  const out = [], col = c => (CATS[c] || CATS.gen).color;
+  let C = A300F.CONTOURS[A300F.contourFor(p, e.uld)];
+  if (e.build && e.build.pieces && A300F.CONTOURS[e.build.contour]){
+    C = A300F.CONTOURS[e.build.contour];
+    e.build.pieces.forEach(q => { if (q.unplaced) return; const f = A300F.rules.footprint(q);
+      out.push({x:(q.x + f.L / 2) / 100 - C.len / 200, z:(q.z + f.W / 2) / 100 - C.wid / 200, y:(q.y + q.h / 2) / 100, w:f.L / 100, d:f.W / 100, h:q.h / 100, c:col(q.cat)}); });
+  } else if (C){
+    const bl = 60, bw = 50, bh = 45, lim = C.hMax * 0.86;
+    for (let y = 0; y + bh <= lim && out.length < 60; y += bh)
+      for (let x = 2; x + bl <= C.len - 2 && out.length < 60; x += bl + 2)
+        for (let z = 2; z + bw <= C.wid - 2 && out.length < 60; z += bw + 2){
+          if (A300F.rules.contourFit(C.poly, z, z + bw, y, y + bh)) continue;
+          out.push({x:(x + bl / 2) / 100 - C.len / 200, z:(z + bw / 2) / 100 - C.wid / 200, y:(y + bh / 2) / 100, w:bl / 100, d:bw / 100, h:bh / 100, c:col(e.cat)});
+        }
+  } else {
+    for (let k = 0; k < 14; k++) out.push({x:((k % 5) - 2) * 0.55, z:((Math.floor(k / 5) % 3) - 1) * 0.5, y:0.2, w:0.5, d:0.45, h:0.4, c:col(e.cat)});
+  }
+  out.sort((a, b) => a.y - b.y);
+  out.C = C; out.ok = !(e.build && A300F.rules.checkBuild(e.build).list.some(m => m.lvl === 'bad'));
+  chainCache[key] = out; return out;
+}
+function dollyPoint(p){
+  if (p.id === 'BULK') return [doorX('bulk'), -(R + 6.18)];
+  if (p.comp === 'main') return [doorX('main'), mainSide() * (R + 11.18)];
+  return [p.comp === 'lfwd' ? doorX('lfwd') + 6.07 : doorX('laft') - 9.5, -(R + 11.18)];
+}
+function driveRoute(p){
+  const D = dollyPoint(p), pts = [[WH.exit.x, WH.exit.z]];
+  if (D[1] < 0){ pts.push([-21, -(R + 17)]); pts.push([D[0] - 6, -(R + 17)]); }
+  else pts.push([D[0] - 6, R + 17]);
+  pts.push(D); return pts;
+}
+function chainSegments(p, i){
+  const xc = p.x0 + p.len / 2, zc = (p.z0 + p.z1) / 2, S = [];
+  const O = (x, y, z) => ({x:x - xc, y:y - p.y0, z:z - zc});
+  const add = (k, a, b, d, ex) => S.push(Object.assign({k, a, b, d, plat:null}, ex || {}));
+  const st = WH.stations[i % 3], yb = GROUND + 0.55, A0 = O(st.x, yb, st.z), n = chainPieces(p).length;
+  add('build', A0, A0, Math.min(7, 2.5 + n * 0.12), {hide:true, st});
+  add('net', A0, A0, 1.2, {hide:true, st});
+  const gate = O(WH.gate.x, yb, WH.gate.z), scl = O(WH.scale.x, GROUND + 0.3, WH.scale.z);
+  add('gauge', A0, gate, 1.8); add('weigh', gate, scl, 1.4);
+  const dTop = GROUND + 0.86; let prev = scl;
+  driveRoute(p).forEach(([x, z]) => { const b = O(x, dTop, z); add('drive', prev, b, Math.max(0.6, Math.hypot(b.x - prev.x, b.z - prev.z) / 8)); prev = b; });
+  animSegments(p).forEach(s => S.push(s));
+  return S;
+}
+function netLines(pcs){
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, h = 0;
+  pcs.forEach(q => { x0 = Math.min(x0, q.x - q.w / 2); x1 = Math.max(x1, q.x + q.w / 2); z0 = Math.min(z0, q.z - q.d / 2); z1 = Math.max(z1, q.z + q.d / 2); h = Math.max(h, q.y + q.h / 2); });
+  const pts = [], st = 0.3, y0 = 0.03, y1 = h + 0.05;
+  if (x1 > x0) {
+    for (let x = x0; x <= x1 + 1e-6; x += st) pts.push(x, y1, z0, x, y1, z1, x, y0, z0, x, y1, z0, x, y0, z1, x, y1, z1);
+    for (let z = z0; z <= z1 + 1e-6; z += st) pts.push(x0, y1, z, x1, y1, z, x0, y0, z, x0, y1, z, x1, y0, z, x1, y1, z);
+    for (let y = y0; y <= y1 + 1e-6; y += st) pts.push(x0, y, z0, x1, y, z0, x0, y, z1, x1, y, z1, x0, y, z0, x0, y, z1, x1, y, z0, x1, y, z1);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({color:0x10241a}));
+}
+let bvKey = null;
+function chainVisual(cur){
+  if (!T || !T.bv) return;
+  const sh = T.gse.shuttle, bv = T.bv, k = cur ? cur.s.k : null;
+  if (k === 'build' || k === 'net'){
+    const p = cur.it.p, pcs = chainPieces(p);
+    if (bvKey !== p.id){
+      bvKey = p.id; bv.clear();
+      const C = pcs.C, L = C ? C.len / 100 : 2.6, Wd = C ? C.wid / 100 : 1.6;
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(L, 0.03, Wd), new THREE.MeshStandardMaterial({color:0xb7c2cc, metalness:0.5, roughness:0.4})); plate.position.y = 0.015; bv.add(plate);
+      if (C && C.container){ const hh = Math.max(...C.outer.map(q => q[1])) / 100; const box = new THREE.Mesh(new THREE.BoxGeometry(L + 0.06, hh, Wd + 0.06), new THREE.MeshBasicMaterial({color:0x9fb0bf, transparent:true, opacity:0.14, depthWrite:false})); box.position.y = hh / 2; bv.add(box); }
+      pcs.forEach(q => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.05, q.w - 0.01), Math.max(0.05, q.h - 0.01), Math.max(0.05, q.d - 0.01)), new THREE.MeshStandardMaterial({color:q.c, roughness:0.75})); m.position.set(q.x, q.y + 0.03, q.z); m.userData.piece = true; bv.add(m); });
+      const net = netLines(pcs); net.userData.net = true; bv.add(net);
+      bv.position.set(cur.s.st.x, GROUND + 0.55, cur.s.st.z);
+    }
+    bv.visible = true;
+    const pieces = bv.children.filter(c => c.userData.piece), show = k === 'net' ? pieces.length : Math.ceil(cur.k * pieces.length);
+    pieces.forEach((m, i) => { m.visible = i < show; });
+    bv.children.forEach(c => { if (c.userData.net) c.visible = k === 'net'; });
+  } else bv.visible = false;
+  if (T.gateM) T.gateM.color.set(k === 'gauge' ? (chainPieces(cur.it.p).ok ? 0x2bb673 : 0xe23b3b) : 0xe2b100);
+  if (k === 'weigh'){ const e = entry(cur.it.p.id); drawScale((e && e.kg ? kg(e.kg) : '0') + ' kg'); }
+  if (k === 'drive' || k === 'dolly'){
+    const p = cur.it.p, m = T.meshes[p.id], cx = m.cargo.position.x + p.len / 2, cz = (p.z0 + p.z1) / 2 + m.cargo.position.z;
+    sh.g.visible = true; sh.g.position.set(cx, 0, cz);
+    if (k === 'drive'){ const dx = cur.s.b.x - cur.s.a.x, dz = cur.s.b.z - cur.s.a.z; if (Math.hypot(dx, dz) > 0.1) sh.g.rotation.y = Math.atan2(-dz, dx); }
+  } else if (k !== 'take') sh.g.visible = false;
+  if (anim && anim.follow && cur){
+    const p = cur.it.p, m = T.meshes[p.id], cx = m.cargo.position.x + p.len / 2, cz = (p.z0 + p.z1) / 2 + m.cargo.position.z, cyy = p.y0 + m.cargo.position.y + 1;
+    const tgt = new THREE.Vector3(cx, cyy, cz), off = new THREE.Vector3(-11, 9, cz >= -2 ? 16 : -16);
+    T.controls.target.lerp(tgt, 0.07); T.camera.position.lerp(tgt.clone().add(off), 0.05); T.dirty = true;
+  }
+}
+function chainExtra(cur){
+  if (!anim || anim.mode !== 'chain' || !cur) return '';
+  const e = entry(cur.it.p.id) || {}, k = cur.s.k;
+  if (k === 'build') return ` ${chainPieces(cur.it.p).length} Stücke auf ${esc(e.uld || '')} für Position ${esc(cur.it.p.label || cur.it.p.id)}.`;
+  if (k === 'gauge') return chainPieces(cur.it.p).ok ? ' <b>Grün.</b> Die ULD liegt in der Kontur.' : ' <b>Rot.</b> Die ULD ragt über die Kontur und muss umgebaut werden. So fährt sie im echten Betrieb nicht raus.';
+  if (k === 'weigh') return ` Angezeigt ${e.kg ? kg(e.kg) : 0} kg brutto.`;
+  return '';
+}
+function chainCleanup(){
+  if (!T || !T.bv) return;
+  T.bv.visible = false; bvKey = null; T.gse.shuttle.g.visible = false;
+  if (T.gateM) T.gateM.color.set(0xe2b100); drawScale('0 kg');
+  ['trainL','trainR'].forEach(id => { const o = T.gse[id]; if (o) o.g.visible = GSE_POSES[id][state.phase].vis !== false; });
+}
+function posContourTxt(p){
+  if (!p.contour) return 'lose Fracht';
+  const e = entry(p.id), C = A300F.CONTOURS[A300F.contourFor(p, (e && e.uld) || p.uld[0])];
+  return C ? esc(C.name) + ', bis ' + C.hMax.toLocaleString('de-DE') + ' cm ' + stTag(C.st.h) : 'siehe ULD';
+}
+function fleetSpecHtml(){
+  const F = A300F.FLEET, S = A300F.SRC;
+  const src = arr => (arr || []).map(k => S[k] && S[k].url ? `<a href="${S[k].url}" target="_blank" rel="noopener">${esc(S[k].name)}</a>` : (S[k] ? esc(S[k].name) : '')).join(', ');
+  const n = (v, d) => v.toLocaleString('de-DE', {minimumFractionDigits:d || 0, maximumFractionDigits:d || 0});
+  const dn = {main:'Hauptdeck', lfwd:'Unterdeck vorne', laft:'Unterdeck hinten', bulk:'Bulk'};
+  return `<h4>Weitere Flugzeugtypen</h4><div class="tablewrap"><table class="spec2"><thead><tr><th>Typ</th><th>Daten</th></tr></thead><tbody>${A300F.FLEET_ORDER.filter(k => k !== 'A300F').map(k => { const a = F[k];
+    const doors = Object.entries(a.doors).map(([dk, d]) => `${dn[dk]} ${n(d.w, 2)} × ${n(d.h, 2)} m, ${esc(d.side)} ${stTag(d.st)}${d.note ? ' ' + esc(d.note) : ''}`).join('<br>');
+    return `<tr><td><b>${esc(a.name)}</b></td><td>Länge ${n(a.L, 2)} m, Spannweite ${n(a.span, 2)} m, Höhe ${n(a.H, 2)} m, Rumpf ${n(a.R * 2, 2)} m ${stTag('unver')}<div class="src">${esc(a.plan)} ${stTag(a.planSt)} Quelle ${src(a.planSrc)}</div><div class="src">${doors}</div><div class="src">MTOW ${n(a.mtow.v)} kg, MZFW ${n(a.mzfw.v)} kg, MLW ${n(a.mlw.v)} kg ${stTag(a.mtow.st)} ${esc(a.mtow.note || '')}</div></td></tr>`; }).join('')}</tbody></table></div>
+    <p class="src">Die Geometrie dieser Typen ist vereinfacht. Positionsnamen und die Verteilung von Q6 und Q7 im 777F sind Trainingsannahmen. Q7 passt nur in große Frachter wie den 777F, nie in A300F, A319 oder A320.</p>`;
 }
 
 /* ---------- Oberfläche ---------- */
@@ -2100,6 +2571,7 @@ function setCat(id, cat){
 }
 
 function renderTop(){
+  const bt = document.querySelector('.brand-type'); if (bt) bt.textContent = curAC().name;
   const st = stats();
   $('#topStats').innerHTML = `<span><b>${st.used}</b> von ${POS.length} Positionen</span><span><b>${kg(st.total)}</b> kg</span>${state.isExample ? '<span class="pill example">Beispieldaten</span>' : ''}`;
 }
@@ -2108,6 +2580,7 @@ function renderToolbar(){
   $$('#toolbar .seg').forEach(s => { const k = s.dataset.key; $$('button', s).forEach(b => { const on = state[k] === b.dataset.val; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); });
   $$('#toolbar .tog').forEach(b => b.setAttribute('aria-pressed', !!state[b.dataset.tog]));
   $('#phaseGroup').hidden = !state.apron;
+  $('#cfgMain').hidden = $('#cfgLow').hidden = state.ac !== 'A300F';
 }
 function chipStyle(c){ return `--c:${c.color};--ci:${c.ink}`; }
 function renderLegend(){
@@ -2124,7 +2597,7 @@ function renderQuick(){
   const wd = state.selWorker && TEAM_BY[state.selWorker];
   if (wd && !anim){
     q.hidden = false; hint.hidden = true; const nm = state.names[wd.id];
-    q.innerHTML = `<div class="quick-head"><span class="wdot lg" style="--c:${wd.vest}"></span><span class="quick-id">${esc(nm || wd.role)}</span><span class="quick-sub">${esc(nm ? wd.role : wd.en)}</span><button class="quick-x" data-q="close" aria-label="Auswahl schließen">✕</button></div><p class="quick-text">${esc(wd.tasks[0])}. ${esc(wd.tasks[1])}.</p><div class="quick-chips"><button class="qchip" data-q="team">Mehr im Reiter Team</button></div>`;
+    q.innerHTML = `<div class="quick-head"><span class="wdot lg" style="--c:${wd.vest}"></span><span class="quick-id">${esc(nm || wd.name || wd.role)}</span><span class="quick-sub">${esc(wd.role)}</span><button class="quick-x" data-q="close" aria-label="Auswahl schließen">✕</button></div><p class="quick-text">${esc(wd.tasks[0])}. ${esc(wd.tasks[1])}.</p><div class="quick-chips"><button class="qchip" data-q="team">Mehr im Reiter Team</button></div>`;
     return;
   }
   if (!p || anim){ q.hidden = true; hint.hidden = !!anim; return; }
@@ -2171,7 +2644,7 @@ function renderPosTab(){
       <div><dt>Höhe</dt><dd>${esc(p.maxH)}</dd></div>
       <div><dt>Passende ULD</dt><dd class="mono">${p.uld.join(', ')}</dd></div>
       <div><dt>Nächste Tür</dt><dd>${DOOR_TXT[p.door || p.comp]}</dd></div>
-      <div><dt>Kontur</dt><dd>${p.contour ? esc(A300F.CONTOURS[p.contour].name) + ', bis ' + A300F.CONTOURS[p.contour].hMax.toLocaleString('de-DE') + ' cm ' + stTag(A300F.CONTOURS[p.contour].st.h) : 'lose Fracht'}</dd></div>
+      <div><dt>Kontur</dt><dd>${posContourTxt(p)}</dd></div>
       <div><dt>Positionslimit</dt><dd>laut Weight and Balance Handbuch ${stTag('unver')}</dd></div>
     </dl></div>
   <div class="card" style="display:flex;flex-direction:column;gap:14px">
@@ -2202,15 +2675,17 @@ function renderPosTab(){
 }
 
 function svgDeck(deck){
-  const S = 10, cy = 34, Hh = 68, W = 575;
+  const AC = curAC(), S = 10, cy = 34, Hh = 68, W = Math.round(AC.L * S + 21);
   const list = POS.filter(p => deck === 'main' ? p.deck === 'main' : p.deck !== 'main');
-  const yR = cy - R * S, yL = cy + R * S;
+  const yR = cy - R * S, yL = cy + R * S, nl = AC.noseLen, ts = AC.tailStart, LL = AC.L, D = AC.doors;
   let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${deck === 'main' ? 'Hauptdeck' : 'Unterdeck'} von oben, Nase links">`;
-  s += `<path d="M ${X_B0 * S} ${yR} L ${X_B1 * S} ${yR} Q ${(X_END - 2) * S} ${cy - 10} ${X_END * S} ${cy - 3} L ${X_END * S} ${cy + 3} Q ${(X_END - 2) * S} ${cy + 10} ${X_B1 * S} ${yL} L ${X_B0 * S} ${yL} Q 4 ${yL} 3 ${cy} Q 4 ${yR} ${X_B0 * S} ${yR} Z" fill="none" stroke="var(--line-strong)" stroke-width="1.2"/>`;
-  if (deck === 'main') s += `<rect x="${8.3 * S}" y="${yL - 1}" width="${3.58 * S}" height="5" fill="#E23B3B"/><text x="${10.1 * S}" y="${Hh - 1}" font-size="7" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono,monospace">Tür</text><line x1="${5.72 * S}" y1="${yR + 3}" x2="${5.72 * S}" y2="${yL - 3}" stroke="var(--hazard)" stroke-width="2" stroke-dasharray="3 2"/>`;
-  else {
-    s += `<rect x="${8.6 * S}" y="${yR - 4}" width="${2.45 * S}" height="5" fill="#E23B3B"/><rect x="${32 * S}" y="${yR - 4}" width="${2.45 * S}" height="5" fill="#E23B3B"/><rect x="${35.5 * S}" y="${yR - 4}" width="${0.95 * S}" height="5" fill="#E23B3B"/>`;
-    s += `<rect x="${18.2 * S}" y="${cy - 16}" width="${8.6 * S}" height="32" fill="var(--surface-2)" stroke="var(--line)" stroke-dasharray="3 3"/><text x="${22.5 * S}" y="${cy + 3}" font-size="8.5" text-anchor="middle" fill="var(--muted)" font-family="Atkinson Hyperlegible,sans-serif">Flügelkasten</text>`;
+  s += `<path d="M ${nl * S} ${yR} L ${ts * S} ${yR} Q ${(LL - 2) * S} ${cy - 10} ${LL * S} ${cy - 3} L ${LL * S} ${cy + 3} Q ${(LL - 2) * S} ${cy + 10} ${ts * S} ${yL} L ${nl * S} ${yL} Q 4 ${yL} 3 ${cy} Q 4 ${yR} ${nl * S} ${yR} Z" fill="none" stroke="var(--line-strong)" stroke-width="1.2"/>`;
+  if (deck === 'main'){
+    if (!AC.cargoMain) s += `<text x="${LL * S / 2}" y="${cy + 3}" font-size="10" text-anchor="middle" fill="var(--muted)" font-family="Atkinson Hyperlegible,sans-serif">Hauptdeck nur Passagiere, keine Fracht</text>`;
+    else s += `<rect x="${D.main.x0 * S}" y="${yL - 1}" width="${D.main.w * S}" height="5" fill="#E23B3B"/><text x="${(D.main.x0 + D.main.w / 2) * S}" y="${Hh - 1}" font-size="7" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono,monospace">Tür</text><line x1="${AC.barrier * S}" y1="${yR + 3}" x2="${AC.barrier * S}" y2="${yL - 3}" stroke="var(--hazard)" stroke-width="2" stroke-dasharray="3 2"/>`;
+  } else {
+    ['lfwd','laft','bulk'].forEach(k => { const d = D[k]; if (d) s += `<rect x="${d.x0 * S}" y="${yR - 4}" width="${d.w * S}" height="5" fill="#E23B3B"/>`; });
+    const wb = AC.wingBox; s += `<rect x="${wb[0] * S}" y="${cy - 16}" width="${(wb[1] - wb[0]) * S}" height="32" fill="var(--surface-2)" stroke="var(--line)" stroke-dasharray="3 3"/><text x="${(wb[0] + wb[1]) / 2 * S}" y="${cy + 3}" font-size="8.5" text-anchor="middle" fill="var(--muted)" font-family="Atkinson Hyperlegible,sans-serif">Flügelkasten</text>`;
   }
   for (const p of list){
     const e = entry(p.id), col = e ? colorFor(p) : null, sel = state.selected === p.id;
@@ -2344,6 +2819,7 @@ $('#toolbar').addEventListener('click', e => {
   const sb = e.target.closest('.seg button');
   if (sb){ const k = sb.parentElement.dataset.key; if (state[k] === sb.dataset.val) return;
     if (k === 'phase'){ if (anim) stopAnim(); setPhase(sb.dataset.val); return; }
+    if (k === 'ac'){ changeAircraft(sb.dataset.val); return; }
     state[k] = sb.dataset.val; save();
     if (k === 'mainCfg' || k === 'lowerCfg') rebuild(); else { renderToolbar(); renderLegend(); renderQuick(); renderPosTab(); renderPlanTab(); apply3D(); } return; }
   const tg = e.target.closest('.tog');
@@ -2353,6 +2829,7 @@ $('#toolbar').addEventListener('click', e => {
 });
 $('#playBtn').addEventListener('click', () => { if (!T){ setTab('info'); return; } startAnim('load'); });
 $('#unloadBtn').addEventListener('click', () => { if (!T){ setTab('info'); return; } startAnim('unload'); });
+$('#chainBtn').addEventListener('click', () => { if (!T){ setTab('info'); return; } startAnim('chain'); });
 $('#tab-plan').addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.wb; if (!k) return; const v = parseFloat(e.target.value); state.wb[k] = isFinite(v) && v >= 0 ? v : 0; save(); const o = $('#wb-out'); if (o) o.innerHTML = wbOut(); });
 $('#legendToggle').addEventListener('click', () => { const L = $('#legend'); L.hidden = !L.hidden; $('#legendToggle').setAttribute('aria-expanded', !L.hidden); $('#legendToggle').classList.toggle('on', !L.hidden); });
 $('#caption').addEventListener('click', e => {
@@ -2364,6 +2841,7 @@ $('#caption').addEventListener('click', e => {
   if (a === 'start'){ A.t = 0; A.playing = false; A.hold = 0; }
   if (a === 'end'){ A.t = A.T; A.playing = false; A.hold = 0; }
   if (a === 'speed') A.speed = A.speed >= 8 ? 1 : A.speed * 2;
+  if (a === 'follow') A.follow = !A.follow;
   applyAnimTime(A.t); renderCaption(); if (T) T.dirty = true;
 });
 $('#caption').addEventListener('input', e => { if (e.target.id !== 'cap-range' || !anim) return; anim.t = e.target.value / 1000 * anim.T; anim.playing = false; anim.hold = 0; applyAnimTime(anim.t); if (T) T.dirty = true; updateCaption(); });
@@ -2439,7 +2917,7 @@ teamBox.addEventListener('input', e => {
   const m = /^wn-(.+)$/.exec(e.target.id || ''); if (!m) return; const id = m[1];
   const v = e.target.value.trim().slice(0, 30); if (v) state.names[id] = v; else delete state.names[id];
   save(); applyApron(); if (T) T.dirty = true; renderQuick();
-  const sm = teamBox.querySelector(`[data-w="${id}"] .wrole small`); if (sm) sm.textContent = state.names[id] || TEAM_BY[id].en;
+  const sb2 = teamBox.querySelector(`[data-w="${id}"] .wrole b`); if (sb2) sb2.textContent = (state.names[id] || TEAM_BY[id].name || '') + ' · ' + TEAM_BY[id].role;
 });
 
 function setTopH(){ document.documentElement.style.setProperty('--top-h', $('#top').offsetHeight + 'px'); }
@@ -2447,6 +2925,7 @@ new ResizeObserver(setTopH).observe($('#top')); setTopH();
 
 /* ---------- Start ---------- */
 if (window.matchMedia('(min-width: 1000px)').matches){ $('#legend').hidden = false; $('#legendToggle').setAttribute('aria-expanded', 'true'); $('#legendToggle').classList.add('on'); }
+applyAircraftGlobals();
 POS = buildPositions(); BYID = Object.fromEntries(POS.map(p => [p.id, p]));
 if (state.selected && !BYID[state.selected]) state.selected = null;
 if (state.selWorker && !TEAM_BY[state.selWorker]) state.selWorker = null;

@@ -25,6 +25,44 @@ window.A300F = window.A300F || {};
      pieces:[[120,100,70,620,7,'gen','Kiste',true,false],[100,80,50,180,2,'gen','Kiste',true,false]]}
   ];
 
+
+  /* Beispiel ULDs: [L, B, H, kg, Stück, Frachtart, Verpackung, stapelbar]. over: 'top' = etwas zu hoch, 'side' = über die Schräge */
+  const EXAMPLES = [
+    {t:'PMC Q6 QM', d:'777F Hauptdeck, in der Kontur', uld:'PMC', contour:'Q6_L', pieces:[[120,100,110,380,6,'gen','Palette (Holz)',true],[80,60,60,70,10,'xps','Karton',true],[60,40,40,22,8,'xps','Karton',true]]},
+    {t:'PMC Q7 QM', d:'777F Hauptdeck, in der Kontur', uld:'PMC', contour:'Q7_L', pieces:[[120,100,140,420,6,'gen','Palette (Holz)',true],[100,80,100,180,6,'gen','Kiste',true],[60,40,40,20,12,'xps','Karton',true]]},
+    {t:'PMC QL', d:'777F Unterdeck, 4 cm zu hoch', uld:'PMC', contour:'LD_PMC', over:'top', pieces:[[120,80,75,210,8,'gen','Kiste',true],[60,40,40,22,8,'gen','Karton',true]]},
+    {t:'PAG QL', d:'A300 Unterdeck, ragt über die Schräge', uld:'PAG', contour:'LD_PAL', over:'side', pieces:[[120,80,70,200,6,'gen','Kiste',true],[60,40,40,20,6,'gen','Karton',true]]},
+    {t:'PAG', d:'A300 Hauptdeck links', uld:'PAG', contour:'MD_SBS_L', pieces:[[120,80,100,180,3,'gen','Karton',true],[100,100,80,260,4,'gen','Kiste',true],[150,110,120,950,1,'gen','Kiste',false],[60,40,40,25,8,'xps','Karton',true]]},
+    {t:'PAJ', d:'A300 Hauptdeck rechts', uld:'PAJ', contour:'MD_SBS_R', pieces:[[120,80,100,190,5,'gen','Karton',true],[100,100,80,240,4,'gen','Kiste',true],[60,40,40,25,8,'mal','Sack',true]]},
+    {t:'PMC', d:'A300 eine Reihe', uld:'PMC', contour:'MD_SR', pieces:[[120,100,100,380,6,'gen','Palette (Holz)',true],[80,60,60,90,8,'xps','Karton',true]]},
+    {t:'AKE', d:'A300 Unterdeck', uld:'AKE', contour:'AKE', pieces:[[60,40,40,18,16,'gen','Karton',true],[50,40,30,12,6,'xps','Karton',true]]},
+    {t:'AKH', d:'A319 und A320 Unterdeck', uld:'AKH', contour:'AKH', pieces:[[50,40,40,15,14,'gen','Karton',true],[60,40,30,14,6,'mal','Sack',true]]},
+    {t:'RKN', d:'Pharma, 2 bis 8 °C', uld:'RKN', contour:'RKN', pieces:[[60,40,40,16,18,'per','Karton',true]]},
+    {t:'RAP', d:'Pharma, 2 bis 8 °C', uld:'RAP', contour:'RAP', pieces:[[120,80,110,260,4,'per','Palette (Holz)',true],[60,40,40,16,10,'per','Karton',true]]},
+    {t:'RLP', d:'Pharma, 15 bis 25 °C', uld:'RLP', contour:'RLP', pieces:[[120,80,110,240,2,'per','Palette (Holz)',true],[60,40,40,15,6,'per','Karton',true]]}
+  ];
+  function exampleBuild(i){
+    const ex = EXAMPLES[i]; if (!ex) return null;
+    const b = newBuild(ex.uld, ex.contour); b.secured = A.ULD[ex.uld].kind === 'pallet'; b.num = ex.uld + ' ' + (10100 + i * 37) + ' XX'; b.example = ex.t;
+    ex.pieces.forEach(([l, w, h, k, n, cat, pack, stack]) => { for (let j = 0; j < n; j++) b.pieces.push({id:b.nextId++, l, w, h, kg:k, cat, pack, awb:'', stack, up:false, dg:'', un:'', x:0, y:0, z:0, rot:0}); });
+    R().autoPlace(b);
+    const C = A.CONTOURS[ex.contour], placed = b.pieces.filter(p => !p.unplaced);
+    b.pieces = placed;
+    if (ex.over && placed.length){
+      let topP = placed[0]; placed.forEach(p => { if (p.y + p.h > topP.y + topP.h) topP = p; });
+      const f = R().footprint(topP), top = topP.y + topP.h;
+      if (ex.over === 'top') b.pieces.push({id:b.nextId++, l:Math.min(60, f.L), w:Math.min(40, f.W), h:Math.max(10, C.hMax - top + 4), kg:20, cat:'gen', pack:'Karton', awb:'', stack:true, up:false, dg:'', un:'', x:topP.x, z:topP.z, y:top, rot:0});
+      else { const q = {id:b.nextId++, l:60, w:40, h:40, kg:20, cat:'gen', pack:'Karton', awb:'', stack:true, up:false, dg:'', un:'', x:0, z:C.wid - 40, y:9999, rot:0, unplaced:false}; b.pieces.push(q); R().settle(b.pieces); q.h = Math.max(30, C.poly[2][1] + 10 - q.y); }
+      R().settle(b.pieces);
+    }
+    return b;
+  }
+  function loadExampleBuild(i){
+    const b = exampleBuild(i); if (!b) return; ctx.setBuild(b); sel = null; ctx.save(); refresh();
+    const box = root.querySelector('#b-exinfo'); const res = R().checkBuild(b), bad = res.list.filter(m => m.lvl === 'bad').length;
+    if (box) box.innerHTML = `<div class="explain" style="--c:${bad ? '#E23B3B' : '#2BB673'}"><i></i><span><b>${esc(EXAMPLES[i].t)}.</b> ${esc(EXAMPLES[i].d)}. ${bad ? `${bad} Fehler, die betroffenen Stücke sind rot.` : 'Alles in der Kontur.'}</span></div>`;
+  }
+
   function newBuild(uld, contour){ return {uld, contour, num:'', pieces:[], spreader:false, secured:false, straps:4, nextId:1, scenario:null}; }
   function B(){ let b = ctx.getBuild(); if (!b || !A.ULD[b.uld] || !A.CONTOURS[b.contour]){ b = newBuild('PAG', 'MD_SBS_L'); ctx.setBuild(b); } return b; }
   function contoursFor(uld){ return Object.entries(A.CONTOURS).filter(([, c]) => c.ulds.includes(uld)); }
@@ -210,6 +248,12 @@ window.A300F = window.A300F || {};
       <div id="b-assign"></div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div class="sec-title">Beispiel ULDs</div>
+      <p class="lead" style="font-size:14px">Fertig gebaute ULDs zum Ansehen. QM liegt in der Kontur, QL ragt bewusst etwas darüber.</p>
+      <div class="scen">${EXAMPLES.map((e, i) => `<button class="btn" data-bex="${i}" title="${esc(e.d)}"><b class="mono">${esc(e.t)}</b> <span class="lead" style="font-size:12px">${esc(e.d)}</span></button>`).join('')}</div>
+      <div id="b-exinfo"></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
       <div class="sec-title">Lernmodus</div>
       <p class="lead" style="font-size:14px">Übungen mit echten Maßen und Gewichten. Löse sie selbst, dann auf Auswerten tippen.</p>
       <div class="scen">${SCEN.map(s => `<button class="btn" data-scen="${s.id}">${esc(s.title)}</button>`).join('')}</div>
@@ -253,7 +297,7 @@ window.A300F = window.A300F || {};
     if (sp){ bs.hidden = false; bs.innerHTML = `<span class="bsel-id">#${sp.id}</span><button class="gbtn" data-mv="-x" aria-label="nach vorne">◀</button><button class="gbtn" data-mv="+x" aria-label="nach hinten">▶</button><button class="gbtn" data-mv="-z" aria-label="nach links">▲</button><button class="gbtn" data-mv="+z" aria-label="nach rechts">▼</button><button class="gbtn" data-mv="rot">Drehen</button><button class="gbtn" data-mv="tilt"${sp.up ? ' disabled' : ''}>Kippen</button><button class="gbtn" data-mv="del">Löschen</button>`; }
     else bs.hidden = true;
     // Positionen
-    const ps = ctx.positions().filter(p => p.contour === b.contour && p.uld.includes(b.uld));
+    const ps = ctx.positions().filter(p => A.contourFor(p, b.uld) === b.contour && p.uld.includes(b.uld));
     const selPos = root.querySelector('#b-pos'); const prev = selPos.value;
     selPos.innerHTML = ps.length ? ps.map(p => `<option value="${p.id}"${p.id === prev ? ' selected' : ''}>${esc(p.label || p.id)} · ${p.deck === 'main' ? 'Hauptdeck' : 'Unterdeck'}${ctx.occupied(p.id) ? ' (belegt)' : ''}</option>`).join('') : '<option value="">Keine passende Position im gewählten Plan</option>';
     if (V){ if (V.key !== b.uld + b.contour){ V.key = b.uld + b.contour; buildBase(); } drawPieces(res); }
@@ -299,6 +343,7 @@ window.A300F = window.A300F || {};
       const v = t.closest('[data-bview]'); if (v){ setView(v.dataset.bview); return; }
       const d = t.closest('[data-del]'); if (d){ b.pieces = b.pieces.filter(p => p.id !== +d.dataset.del); if (sel === +d.dataset.del) sel = null; changed(true); return; }
       const sc = t.closest('[data-scen]'); if (sc){ startScenario(sc.dataset.scen); return; }
+      const bxe = t.closest('[data-bex]'); if (bxe){ loadExampleBuild(+bxe.dataset.bex); return; }
       const tr = t.closest('tr[data-pid]'); if (tr){ sel = +tr.dataset.pid; refresh(); return; }
       const mv = t.closest('[data-mv]');
       if (mv){
@@ -346,9 +391,9 @@ window.A300F = window.A300F || {};
     openFor(pos, entry){
       let b;
       if (entry && entry.build) b = JSON.parse(JSON.stringify(entry.build));
-      else { const uld = entry && entry.uld && entry.uld !== 'BULK' && pos.uld.includes(entry.uld) ? entry.uld : pos.uld[0]; b = newBuild(uld, pos.contour); }
+      else { const uld = entry && entry.uld && entry.uld !== 'BULK' && pos.uld.includes(entry.uld) ? entry.uld : pos.uld[0]; b = newBuild(uld, A.contourFor(pos, uld)); }
       b.assignedTo = null; ctx.setBuild(b); sel = null; ctx.save(); if (root) refresh();
     },
-    scenarios:SCEN
+    scenarios:SCEN, examples:EXAMPLES, exampleBuild
   };
 })(window.A300F);
